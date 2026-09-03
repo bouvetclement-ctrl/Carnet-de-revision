@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Révisions">
+<title>Carnet de révisions</title>
+<style>
+  body{margin:0;padding:0;background:#FBF7EE;}
+  @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+  :root{
+    --paper: #FBF7EE;
+    --paper-line: #E7DCC4;
+    --margin: #C4574A;
+    --ink: #2B2B2E;
+    --ink-soft: #706A5C;
+    --ink-faint: #A39C89;
+    --y: #EFC94C;
+    --g: #7FA98A;
+    --b: #6F97BE;
+    --p: #C97C93;
+    --o: #D98A4E;
+    --card-bg: #FFFDF8;
+    --danger: #B4483C;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  .carnet-app{
+    font-family:'Inter',sans-serif;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(var(--paper) 0px, var(--paper) 27px, var(--paper-line) 28px),
+      var(--paper);
+    max-width:420px;
+    margin:0 auto;
+    min-height:640px;
+    position:relative;
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  }
+  .carnet-app::before{
+    content:"";
+    position:absolute;
+    top:0; bottom:0; left:38px;
+    width:2px;
+    background:rgba(196,87,74,0.35);
+    pointer-events:none;
+    z-index:1;
+  }
+
+  /* HEADER */
+  .c-header{
+    position:relative;
+    z-index:2;
+    padding:22px 20px 14px 48px;
+  }
+  .c-header .eyebrow{
+    font-family:'Kalam',cursive;
+    font-size:15px;
+    color:var(--ink-soft);
+    display:block;
+    transform:rotate(-1deg);
+  }
+  .c-header h1{
+    font-family:'Kalam',cursive;
+    font-weight:700;
+    font-size:32px;
+    margin:2px 0 0 0;
+    line-height:1;
+    transform:rotate(-0.5deg);
+  }
+  .c-header h1 .dot{color:var(--margin);}
+
+  /* CONTENT */
+  .c-content{
+    position:relative;
+    z-index:2;
+    padding:6px 18px 90px 48px;
+    min-height:480px;
+  }
+  .c-view{display:none;}
+  .c-view.active{display:block;}
+
+  /* SECTION LABEL */
+  .c-sec-label{
+    font-family:'Kalam',cursive;
+    font-size:19px;
+    font-weight:700;
+    margin:18px 0 10px 0;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .c-sec-label .count{
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+  }
+
+  /* STAT ROW */
+  .c-stats{
+    display:flex;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .c-stat{
+    flex:1;
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:12px 10px;
+    position:relative;
+  }
+  .c-stat .num{
+    font-family:'Kalam',cursive;
+    font-size:26px;
+    font-weight:700;
+    line-height:1;
+  }
+  .c-stat .lbl{
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:4px;
+    display:block;
+  }
+
+  /* CARD (session / review entry) */
+  .c-card{
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-left:5px solid var(--y);
+    border-radius:3px;
+    padding:11px 13px;
+    margin-bottom:10px;
+    position:relative;
+  }
+  .c-card .top-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .c-card .matiere{
+    font-weight:700;
+    font-size:14px;
+  }
+  .c-card .sujet{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin-top:1px;
+  }
+  .c-card .meta{
+    display:flex;
+    gap:10px;
+    margin-top:8px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .c-card .meta span{display:flex;align-items:center;gap:3px;}
+  .c-card .diff-dots{display:inline-flex;gap:2px;}
+  .c-card .diff-dots i{
+    width:6px;height:6px;border-radius:50%;
+    background:var(--paper-line);
+    display:inline-block;
+  }
+  .c-card .diff-dots i.on{background:var(--margin);}
+  .c-card .notes{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:7px;
+    font-style:italic;
+    border-top:1px dashed var(--paper-line);
+    padding-top:6px;
+  }
+  .c-card .del{
+    background:none;border:none;color:var(--ink-faint);
+    font-size:16px;cursor:pointer;padding:0 2px;line-height:1;
+  }
+  .c-card .del:active{color:var(--danger);}
+  .c-card.overdue{border-left-color:var(--margin);}
+  .c-card .review-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-size:11px;
+    font-weight:600;
+    padding:3px 8px;
+    border-radius:20px;
+    background:#F2E9D8;
+    color:var(--ink-soft);
+    margin-top:8px;
+  }
+  .c-card .review-pill.late{background:#F6E1DD;color:var(--danger);}
+  .c-card button.done-btn{
+    margin-top:8px;
+    border:1px solid var(--g);
+    color:#3F6B4C;
+    background:#F2F7F2;
+    font-size:11.5px;
+    font-weight:600;
+    padding:5px 10px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  .c-card button.done-btn:active{background:var(--g);color:white;}
+
+  .c-empty{
+    font-family:'Kalam',cursive;
+    font-size:15px;
+    color:var(--ink-faint);
+    text-align:center;
+    padding:30px 10px;
+    transform:rotate(-0.5deg);
+  }
+
+  /* FORM */
+  .c-field{margin-bottom:16px;}
+  .c-field label{
+    display:block;
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+    letter-spacing:0.2px;
+  }
+  .c-chips{display:flex;flex-wrap:wrap;gap:7px;}
+  .c-chip{
+    padding:7px 12px;
+    border-radius:20px;
+    border:1.5px solid var(--paper-line);
+    background:var(--card-bg);
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .c-chip.sel{
+    border-color:var(--ink);
+    background:var(--ink);
+    color:var(--paper);
+  }
+  input[type=text], input[type=date], textarea, input[type=number]{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:10px 11px;
+    border:1.5px solid var(--paper-line);
+    border-radius:4px;
+    background:var(--card-bg);
+    color:var(--ink);
+  }
+  input:focus, textarea:focus{outline:2px solid var(--b);outline-offset:1px;}
+  textarea{min-height:60px;resize:vertical;font-family:'Inter',sans-serif;}
+  .c-duree-row{display:flex;gap:8px;align-items:center;}
+  .c-duree-row input[type=number]{width:90px;flex:none;}
+  .c-quick{
+    display:flex;gap:6px;flex:1;
+  }
+  .c-quick button{
+    flex:1;
+    padding:9px 0;
+    border-radius:4px;
+    border:1.5px solid var(--paper-line);
+    background:var(--card-bg);
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .c-quick button.sel{background:var(--b);border-color:var(--b);color:white;}
+  .c-diff-row{display:flex;gap:6px;}
+  .c-diff-btn{
+    flex:1;
+    padding:11px 0;
+    border-radius:4px;
+    border:1.5px solid var(--paper-line);
+    background:var(--card-bg);
+    font-size:19px;
+    cursor:pointer;
+    text-align:center;
+  }
+  .c-diff-btn.sel{border-color:var(--ink);background:#F2ECDC;}
+  .c-diff-caption{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+  .c-toggle-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--card-bg);
+    border:1.5px solid var(--paper-line);
+    border-radius:4px;
+    padding:11px 13px;
+  }
+  .c-toggle-row .txt{font-size:13px;font-weight:600;}
+  .c-toggle-row .sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
+  .c-switch{
+    width:42px;height:24px;border-radius:20px;
+    background:var(--paper-line);
+    position:relative;cursor:pointer;flex:none;
+    border:none;
+  }
+  .c-switch .knob{
+    width:18px;height:18px;border-radius:50%;
+    background:white;position:absolute;top:3px;left:3px;
+    transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,0.2);
+  }
+  .c-switch.on{background:var(--g);}
+  .c-switch.on .knob{left:21px;}
+
+  .c-submit{
+    width:100%;
+    padding:13px;
+    border-radius:6px;
+    border:none;
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Kalam',cursive;
+    font-size:18px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  .c-submit:active{opacity:0.85;}
+
+  /* FILTER BAR (historique) */
+  .c-filterbar{
+    display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;
+  }
+  .c-filterbar::-webkit-scrollbar{display:none;}
+
+  /* BOTTOM NAV */
+  .c-nav{
+    position:absolute;
+    bottom:0;left:0;right:0;
+    z-index:3;
+    background:var(--card-bg);
+    border-top:1.5px solid var(--paper-line);
+    display:flex;
+    padding:8px 4px 10px 4px;
+  }
+  .c-nav-btn{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    background:none;
+    border:none;
+    cursor:pointer;
+    color:var(--ink-faint);
+    padding:4px 1px;
+  }
+  .c-nav-btn .ic{font-size:17px;line-height:1;}
+  .c-nav-btn .lbl{font-size:9px;font-weight:600;white-space:nowrap;}
+  .c-nav-btn.active{color:var(--margin);}
+  .c-nav-btn{position:relative;}
+  .c-nav-btn .run-dot{
+    position:absolute;top:2px;right:calc(50% - 15px);
+    width:7px;height:7px;border-radius:50%;
+    background:var(--margin);
+    display:none;
+    animation:pulse 1.4s infinite;
+  }
+  .c-nav-btn.has-run .run-dot{display:block;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+
+  /* MINUTEUR */
+  .c-timer-wrap{
+    text-align:center;
+    padding:14px 0 6px 0;
+  }
+  .c-timer-display{
+    font-family:'Kalam',cursive;
+    font-weight:700;
+    font-size:58px;
+    letter-spacing:1px;
+    line-height:1;
+    margin:14px 0 4px 0;
+    transform:rotate(-0.5deg);
+  }
+  .c-timer-display.running{color:var(--margin);}
+  .c-timer-sub{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:18px;
+  }
+  .c-timer-controls{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    margin-bottom:8px;
+  }
+  .c-timer-btn{
+    width:64px;height:64px;
+    border-radius:50%;
+    border:none;
+    font-size:22px;
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .c-timer-btn.start{background:var(--ink);color:var(--paper);}
+  .c-timer-btn.reset{background:var(--card-bg);border:1.5px solid var(--paper-line);color:var(--ink-soft);width:52px;height:52px;align-self:center;font-size:18px;}
+  .c-timer-finish{
+    width:100%;
+    padding:13px;
+    border-radius:6px;
+    border:1.5px solid var(--g);
+    background:#F2F7F2;
+    color:#3F6B4C;
+    font-family:'Kalam',cursive;
+    font-size:17px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:18px;
+  }
+  .c-timer-finish:disabled{opacity:0.4;cursor:default;}
+
+  /* STATISTIQUES */
+  .c-bar-row{
+    margin-bottom:14px;
+  }
+  .c-bar-row .bar-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:5px;
+  }
+  .c-bar-row .bar-name{font-size:13px;font-weight:700;}
+  .c-bar-row .bar-val{font-size:11.5px;color:var(--ink-soft);}
+  .c-bar-track{
+    height:9px;
+    border-radius:5px;
+    background:var(--paper-line);
+    overflow:hidden;
+  }
+  .c-bar-fill{
+    height:100%;
+    border-radius:5px;
+  }
+  .c-bar-sub{
+    display:flex;
+    gap:10px;
+    margin-top:4px;
+    font-size:10.5px;
+    color:var(--ink-faint);
+  }
+  .c-note-box{
+    background:#F2ECDC;
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:11px 13px;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-top:20px;
+    line-height:1.5;
+  }
+  .c-note-box b{color:var(--ink);}
+
+  .c-export-btn{
+    width:100%;
+    padding:12px;
+    border-radius:6px;
+    border:1.5px solid var(--ink);
+    background:var(--card-bg);
+    color:var(--ink);
+    font-family:'Kalam',cursive;
+    font-size:16px;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:16px;
+  }
+
+  /* BILAN OVERLAY */
+  #bilanOverlay{
+    display:none;
+    position:absolute;
+    inset:0;
+    z-index:20;
+    background:var(--paper);
+    overflow-y:auto;
+    border-radius:18px;
+  }
+  #bilanOverlay.show{display:block;}
+  .bilan-topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px 18px 8px 18px;
+    position:sticky;
+    top:0;
+    background:var(--paper);
+    z-index:2;
+  }
+  .bilan-topbar .close{
+    background:none;border:none;font-size:20px;color:var(--ink-soft);cursor:pointer;
+  }
+  .bilan-body{padding:6px 22px 24px 22px;}
+  .bilan-title{
+    font-family:'Kalam',cursive;
+    font-size:26px;
+    font-weight:700;
+    margin:4px 0 2px 0;
+    transform:rotate(-0.5deg);
+  }
+  .bilan-sub{font-size:12px;color:var(--ink-soft);margin-bottom:14px;}
+  .bilan-period-chips{display:flex;gap:7px;margin-bottom:16px;}
+  .bilan-name-field{margin-bottom:16px;}
+  .bilan-name-field input{width:100%;}
+  .bilan-stats{
+    display:flex;gap:10px;margin-bottom:20px;
+  }
+  .bilan-stat{
+    flex:1;text-align:center;
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:12px 6px;
+  }
+  .bilan-stat .num{font-family:'Kalam',cursive;font-size:22px;font-weight:700;display:block;}
+  .bilan-stat .lbl{font-size:10.5px;color:var(--ink-soft);}
+  .bilan-table{width:100%;border-collapse:collapse;margin-bottom:18px;}
+  .bilan-table th{
+    text-align:left;font-size:11px;color:var(--ink-soft);
+    padding-bottom:6px;border-bottom:1.5px solid var(--ink);
+  }
+  .bilan-table td{
+    font-size:12.5px;padding:7px 4px;border-bottom:1px solid var(--paper-line);
+  }
+  .bilan-table td.tnum{text-align:right;}
+  .bilan-actions{display:flex;flex-direction:column;gap:9px;margin-top:8px;}
+  .bilan-actions button{
+    padding:12px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .bilan-actions .btn-print{background:var(--ink);color:var(--paper);border:none;}
+  .bilan-actions .btn-share{background:var(--card-bg);color:var(--ink);border:1.5px solid var(--paper-line);}
+  .bilan-foot{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:18px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #bilanOverlay, #bilanOverlay *{visibility:visible;}
+    #bilanOverlay{position:absolute;inset:0;overflow:visible;}
+    .bilan-topbar, .bilan-actions, .bilan-period-chips, .bilan-name-field{display:none !important;}
+  }
+
+  .c-toast{
+    position:absolute;
+    bottom:78px;left:50%;
+    transform:translateX(-50%) translateY(10px);
+    background:var(--ink);
+    color:var(--paper);
+    padding:8px 16px;
+    border-radius:20px;
+    font-size:12.5px;
+    font-weight:600;
+    z-index:10;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s, transform .2s;
+  }
+  .c-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .c-loading{
+    text-align:center;
+    padding:40px;
+    font-family:'Kalam',cursive;
+    color:var(--ink-faint);
+  }
+
+  .c-reset-link{
+    display:block;
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-top:26px;
+    text-decoration:underline;
+    background:none;border:none;cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="carnet-app" id="app">
+  <div class="c-header">
+    <span class="eyebrow" id="dateToday"></span>
+    <h1>Carnet de révisions<span class="dot">.</span></h1>
+  </div>
+
+  <div class="c-content">
+
+    <!-- ACCUEIL -->
+    <div class="c-view active" id="view-accueil">
+      <div class="c-stats">
+        <div class="c-stat">
+          <span class="num" id="statTemps">0h</span>
+          <span class="lbl">cette semaine</span>
+        </div>
+        <div class="c-stat">
+          <span class="num" id="statSessions">0</span>
+          <span class="lbl">séances / 7j</span>
+        </div>
+        <div class="c-stat">
+          <span class="num" id="statARevoir">0</span>
+          <span class="lbl">à revoir</span>
+        </div>
+      </div>
+
+      <div class="c-sec-label">À revoir bientôt <span class="count" id="revoirCount"></span></div>
+      <div id="listeARevoir"></div>
+
+      <div class="c-sec-label">Dernières séances <span class="count" id="recentCount"></span></div>
+      <div id="listeRecentes"></div>
+
+      <button class="c-reset-link" id="resetBtn">Réinitialiser toutes les données</button>
+    </div>
+
+    <!-- AJOUTER -->
+    <div class="c-view" id="view-ajouter">
+      <div class="c-sec-label">Nouvelle séance</div>
+
+      <div class="c-field">
+        <label>Matière</label>
+        <div class="c-chips" id="matiereChips"></div>
+        <div style="margin-top:8px;">
+          <input type="text" id="matiereCustom" placeholder="Ou saisir une autre matière...">
+        </div>
+      </div>
+
+      <div class="c-field">
+        <label>Chapitre / sujet</label>
+        <input type="text" id="sujetInput" placeholder="Ex : Les suites numériques">
+      </div>
+
+      <div class="c-field">
+        <label>Date</label>
+        <input type="date" id="dateInput">
+      </div>
+
+      <div class="c-field">
+        <label>Durée</label>
+        <div class="c-duree-row">
+          <input type="number" id="dureeInput" min="0" placeholder="min">
+          <div class="c-quick" id="dureeQuick">
+            <button data-v="15">15</button>
+            <button data-v="30">30</button>
+            <button data-v="45">45</button>
+            <button data-v="60">60</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="c-field">
+        <label>Difficulté ressentie</label>
+        <div class="c-diff-row" id="diffRow">
+          <button class="c-diff-btn" data-v="1">😄</button>
+          <button class="c-diff-btn" data-v="2">🙂</button>
+          <button class="c-diff-btn" data-v="3">😐</button>
+          <button class="c-diff-btn" data-v="4">😕</button>
+          <button class="c-diff-btn" data-v="5">😩</button>
+        </div>
+        <div class="c-diff-caption" id="diffCaption">Choisis un niveau</div>
+      </div>
+
+      <div class="c-field">
+        <label>Notes (optionnel)</label>
+        <textarea id="notesInput" placeholder="Ce qui a coincé, ce qu'il faut refaire..."></textarea>
+      </div>
+
+      <div class="c-field">
+        <div class="c-toggle-row">
+          <div>
+            <div class="txt">Programmer une révision</div>
+            <div class="sub" id="revoirSub">Date suggérée selon la difficulté</div>
+          </div>
+          <button class="c-switch on" id="revoirSwitch"><span class="knob"></span></button>
+        </div>
+      </div>
+
+      <button class="c-submit" id="saveBtn">Enregistrer la séance</button>
+    </div>
+
+    <!-- MINUTEUR -->
+    <div class="c-view" id="view-minuteur">
+      <div class="c-sec-label">Minuteur de révision</div>
+
+      <div class="c-field">
+        <label>Matière (optionnel, à choisir avant de démarrer)</label>
+        <div class="c-chips" id="timerMatiereChips"></div>
+      </div>
+
+      <div class="c-field">
+        <label>Chapitre / sujet (optionnel)</label>
+        <input type="text" id="timerSujetInput" placeholder="Ex : Les suites numériques">
+      </div>
+
+      <div class="c-timer-wrap">
+        <div class="c-timer-display" id="timerDisplay">00:00</div>
+        <div class="c-timer-sub" id="timerSub">Prêt à démarrer</div>
+        <div class="c-timer-controls">
+          <button class="c-timer-btn reset" id="timerReset" title="Réinitialiser">↺</button>
+          <button class="c-timer-btn start" id="timerStart">▶</button>
+        </div>
+      </div>
+
+      <button class="c-timer-finish" id="timerFinish" disabled>Terminer et enregistrer la séance</button>
+    </div>
+
+    <!-- HISTORIQUE -->
+    <div class="c-view" id="view-historique">
+      <div class="c-sec-label">Historique <span class="count" id="histCount"></span></div>
+      <div class="c-filterbar" id="histFilters"></div>
+      <div id="histList"></div>
+    </div>
+
+    <!-- PLANNING -->
+    <div class="c-view" id="view-planning">
+      <div class="c-sec-label">Planning des révisions <span class="count" id="planCount"></span></div>
+      <div id="planList"></div>
+    </div>
+
+    <!-- STATISTIQUES -->
+    <div class="c-view" id="view-statistiques">
+      <div class="c-sec-label">Statistiques</div>
+      <div class="c-stats">
+        <div class="c-stat">
+          <span class="num" id="statTotalTemps">0h</span>
+          <span class="lbl">temps total</span>
+        </div>
+        <div class="c-stat">
+          <span class="num" id="statTotalSessions">0</span>
+          <span class="lbl">séances</span>
+        </div>
+        <div class="c-stat">
+          <span class="num" id="statMoyDiff">-</span>
+          <span class="lbl">difficulté moy.</span>
+        </div>
+      </div>
+
+      <div class="c-sec-label">Répartition par matière</div>
+      <div id="statBars"></div>
+
+      <div class="c-note-box" id="statScheduleNote"></div>
+
+      <button class="c-export-btn" id="openBilanBtn">📄 Générer un bilan à présenter</button>
+    </div>
+
+  </div>
+
+  <div id="bilanOverlay">
+    <div class="bilan-topbar">
+      <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Aperçu du bilan</span>
+      <button class="close" id="closeBilanBtn">✕</button>
+    </div>
+    <div class="bilan-body">
+      <div class="bilan-title">Bilan de révisions<span style="color:var(--margin);">.</span></div>
+      <div class="bilan-sub" id="bilanDateLine"></div>
+
+      <div class="bilan-name-field">
+        <input type="text" id="bilanNameInput" placeholder="Nom de l'élève (optionnel)">
+      </div>
+
+      <div class="bilan-period-chips" id="bilanPeriodChips">
+        <button class="c-chip sel" data-p="semaine">Cette semaine</button>
+        <button class="c-chip" data-p="mois">Ce mois</button>
+        <button class="c-chip" data-p="tout">Depuis le début</button>
+      </div>
+
+      <div class="bilan-stats" id="bilanStats"></div>
+
+      <table class="bilan-table" id="bilanTable"></table>
+
+      <div class="bilan-actions">
+        <button class="btn-print" id="bilanPrintBtn">🖨️ Imprimer / Enregistrer en PDF</button>
+        <button class="btn-share" id="bilanShareBtn">↗ Partager (Messages, Mail...)</button>
+      </div>
+      <div class="bilan-foot">Généré avec Carnet de révisions</div>
+    </div>
+  </div>
+
+  <div class="c-toast" id="toast"></div>
+
+  <div class="c-nav">
+    <button class="c-nav-btn active" data-view="accueil"><span class="ic">🏠</span><span class="lbl">Accueil</span></button>
+    <button class="c-nav-btn" data-view="ajouter"><span class="ic">✏️</span><span class="lbl">Ajouter</span></button>
+    <button class="c-nav-btn" data-view="minuteur"><span class="ic">⏱</span><span class="run-dot"></span><span class="lbl">Minuteur</span></button>
+    <button class="c-nav-btn" data-view="historique"><span class="ic">📚</span><span class="lbl">Historique</span></button>
+    <button class="c-nav-btn" data-view="planning"><span class="ic">🔁</span><span class="lbl">Planning</span></button>
+    <button class="c-nav-btn" data-view="statistiques"><span class="ic">📊</span><span class="lbl">Stats</span></button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = "revision-sessions-v1";
+  const MATIERES_DEFAULT = ["Mathématiques","Français","Physique-Chimie","Histoire-Géographie","Anglais LV1","Allemand LV2","Numérique & Sc. Info","Enseign. scientifique","EMC","Autre"];
+  const COLORS = ["--y","--g","--b","--p","--o"];
+  const DIFF_LABELS = {1:"Facile",2:"Plutôt facile",3:"Moyen",4:"Difficile",5:"Très difficile"};
+
+  let sessions = [];
+  let selectedMatiere = null;
+  let selectedDuree = null;
+  let selectedDiff = null;
+  let revoirOn = true;
+  let histFilter = "toutes";
+  let loaded = false;
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  function uid(){ return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  function matiereColor(name){
+    let h = 0;
+    for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) % 997;
+    return COLORS[h % COLORS.length];
+  }
+
+  function fmtDate(d){
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+  }
+
+  function todayISO(){
+    const d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function daysDiff(iso){
+    const today = new Date(todayISO()+"T00:00:00");
+    const d = new Date(iso+"T00:00:00");
+    return Math.round((d-today)/86400000);
+  }
+
+  function suggestReviewDate(diff, baseISO){
+    const days = diff <= 2 ? 7 : (diff === 3 ? 4 : 2);
+    const d = new Date(baseISO + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0,10);
+  }
+
+  async function loadSessions(){
+    try{
+      if(typeof window.storage !== 'undefined' && window.storage){
+        const res = await window.storage.get(STORAGE_KEY, false);
+        sessions = res && res.value ? JSON.parse(res.value) : [];
+      } else {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        sessions = raw ? JSON.parse(raw) : [];
+      }
+    }catch(e){
+      sessions = [];
+    }
+    loaded = true;
+  }
+
+  async function persist(){
+    try{
+      if(typeof window.storage !== 'undefined' && window.storage){
+        await window.storage.set(STORAGE_KEY, JSON.stringify(sessions), false);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+      }
+    }catch(e){
+      showToast("Erreur d'enregistrement");
+    }
+  }
+
+  function showToast(msg){
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1600);
+  }
+
+  // ---------- NAV ----------
+  function switchView(name){
+    $$('.c-view').forEach(v=>v.classList.remove('active'));
+    $('#view-'+name).classList.add('active');
+    $$('.c-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
+    if(name==='accueil') renderAccueil();
+    if(name==='historique') renderHistorique();
+    if(name==='planning') renderPlanning();
+    if(name==='statistiques') renderStatistiques();
+    if(name==='ajouter') resetForm();
+  }
+  $$('.c-nav-btn').forEach(b=>b.addEventListener('click', ()=>switchView(b.dataset.view)));
+
+  // ---------- FORM ----------
+  function buildMatiereChips(){
+    const wrap = $('#matiereChips');
+    wrap.innerHTML = '';
+    MATIERES_DEFAULT.forEach(m=>{
+      const chip = document.createElement('button');
+      chip.className = 'c-chip';
+      chip.type='button';
+      chip.textContent = m;
+      chip.addEventListener('click', ()=>{
+        selectedMatiere = m;
+        $('#matiereCustom').value = '';
+        $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+        chip.classList.add('sel');
+      });
+      wrap.appendChild(chip);
+    });
+  }
+  buildMatiereChips();
+
+  $('#matiereCustom').addEventListener('input', (e)=>{
+    if(e.target.value.trim()){
+      selectedMatiere = e.target.value.trim();
+      $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+    }
+  });
+
+  $('#dureeQuick').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    selectedDuree = parseInt(btn.dataset.v,10);
+    $('#dureeInput').value = selectedDuree;
+    $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', b===btn));
+  });
+  $('#dureeInput').addEventListener('input', ()=>{
+    $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
+  });
+
+  $('#diffRow').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.c-diff-btn');
+    if(!btn) return;
+    selectedDiff = parseInt(btn.dataset.v,10);
+    $$('.c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
+    $('#diffCaption').textContent = DIFF_LABELS[selectedDiff];
+    updateRevoirSub();
+  });
+
+  $('#revoirSwitch').addEventListener('click', ()=>{
+    revoirOn = !revoirOn;
+    $('#revoirSwitch').classList.toggle('on', revoirOn);
+    updateRevoirSub();
+  });
+
+  function updateRevoirSub(){
+    if(!revoirOn){ $('#revoirSub').textContent = "Désactivé"; return; }
+    const diff = selectedDiff || 3;
+    const baseISO = $('#dateInput').value || todayISO();
+    const dt = suggestReviewDate(diff, baseISO);
+    $('#revoirSub').textContent = "Suggestion : " + fmtDate(dt);
+  }
+  $('#dateInput').addEventListener('change', updateRevoirSub);
+
+  function resetForm(){
+    selectedMatiere = null;
+    selectedDuree = null;
+    selectedDiff = null;
+    revoirOn = true;
+    $('#matiereCustom').value = '';
+    $('#sujetInput').value = '';
+    $('#dureeInput').value = '';
+    $('#notesInput').value = '';
+    $('#dateInput').value = todayISO();
+    $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+    $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
+    $$('.c-diff-btn').forEach(b=>b.classList.remove('sel'));
+    $('#diffCaption').textContent = "Choisis un niveau";
+    $('#revoirSwitch').classList.add('on');
+    updateRevoirSub();
+  }
+
+  $('#saveBtn').addEventListener('click', async ()=>{
+    if(!selectedMatiere){ showToast("Choisis une matière"); return; }
+    const sujet = $('#sujetInput').value.trim();
+    const date = $('#dateInput').value || todayISO();
+    const duree = parseInt($('#dureeInput').value,10);
+    if(!duree || duree<=0){ showToast("Indique une durée"); return; }
+    if(!selectedDiff){ showToast("Choisis une difficulté"); return; }
+    const notes = $('#notesInput').value.trim();
+
+    const session = {
+      id: uid(),
+      matiere: selectedMatiere,
+      sujet: sujet,
+      date: date,
+      duree: duree,
+      difficulte: selectedDiff,
+      notes: notes,
+      revoirDate: revoirOn ? suggestReviewDate(selectedDiff, date) : null,
+      revu: false
+    };
+    sessions.unshift(session);
+    await persist();
+    showToast("Séance enregistrée ✓");
+    switchView('accueil');
+  });
+
+  // ---------- ACCUEIL ----------
+  function renderAccueil(){
+    const now = new Date();
+    const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return d.toISOString().slice(0,10);})();
+    const weekSessions = sessions.filter(s=>s.date >= weekAgoISO && s.date <= todayISO());
+    const totalMin = weekSessions.reduce((a,s)=>a+s.duree,0);
+    $('#statTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
+    $('#statSessions').textContent = weekSessions.length;
+
+    const upcoming = sessions.filter(s=>s.revoirDate && !s.revu).sort((a,b)=>a.revoirDate.localeCompare(b.revoirDate));
+    const dueSoon = upcoming.filter(s=>daysDiff(s.revoirDate) <= 2);
+    $('#statARevoir').textContent = upcoming.length;
+
+    $('#revoirCount').textContent = dueSoon.length ? '('+dueSoon.length+')' : '';
+    const listARevoir = $('#listeARevoir');
+    listARevoir.innerHTML = '';
+    if(dueSoon.length === 0){
+      listARevoir.innerHTML = '<div class="c-empty">Rien à revoir pour l\'instant, bien joué 👍</div>';
+    } else {
+      dueSoon.slice(0,4).forEach(s=>listARevoir.appendChild(reviewCard(s)));
+    }
+
+    const recent = sessions.slice(0,4);
+    $('#recentCount').textContent = sessions.length ? '('+sessions.length+')' : '';
+    const listRecentes = $('#listeRecentes');
+    listRecentes.innerHTML = '';
+    if(recent.length === 0){
+      listRecentes.innerHTML = '<div class="c-empty">Aucune séance enregistrée.<br>Ajoute ta première révision !</div>';
+    } else {
+      recent.forEach(s=>listRecentes.appendChild(sessionCard(s)));
+    }
+  }
+
+  $('#resetBtn').addEventListener('click', async ()=>{
+    if(confirm("Supprimer définitivement toutes les séances enregistrées ?")){
+      sessions = [];
+      await persist();
+      renderAccueil();
+      showToast("Données réinitialisées");
+    }
+  });
+
+  // ---------- CARDS ----------
+  function diffDots(diff){
+    let html = '<span class="diff-dots">';
+    for(let i=1;i<=5;i++) html += '<i class="'+(i<=diff?'on':'')+'"></i>';
+    html += '</span>';
+    return html;
+  }
+
+  function sessionCard(s){
+    const card = document.createElement('div');
+    card.className = 'c-card';
+    card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
+    card.innerHTML = `
+      <div class="top-row">
+        <div>
+          <div class="matiere">${escapeHtml(s.matiere)}</div>
+          ${s.sujet ? `<div class="sujet">${escapeHtml(s.sujet)}</div>` : ''}
+        </div>
+        <button class="del" data-id="${s.id}" title="Supprimer">✕</button>
+      </div>
+      <div class="meta">
+        <span>📅 ${fmtDate(s.date)}</span>
+        <span>⏱ ${s.duree} min</span>
+        <span>${diffDots(s.difficulte)}</span>
+      </div>
+      ${s.notes ? `<div class="notes">${escapeHtml(s.notes)}</div>` : ''}
+      ${s.revoirDate && !s.revu ? `<div class="review-pill ${daysDiff(s.revoirDate)<0?'late':''}">🔁 À revoir le ${fmtDate(s.revoirDate)}</div>` : ''}
+    `;
+    card.querySelector('.del').addEventListener('click', async ()=>{
+      sessions = sessions.filter(x=>x.id!==s.id);
+      await persist();
+      renderAccueil(); renderHistorique(); renderPlanning();
+    });
+    return card;
+  }
+
+  function reviewCard(s){
+    const card = document.createElement('div');
+    const diffJ = daysDiff(s.revoirDate);
+    const late = diffJ < 0;
+    card.className = 'c-card' + (late ? ' overdue' : '');
+    card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
+    let when = late ? `En retard de ${Math.abs(diffJ)}j` : (diffJ===0 ? "Aujourd'hui" : (diffJ===1 ? "Demain" : `Dans ${diffJ}j`));
+    card.innerHTML = `
+      <div class="top-row">
+        <div>
+          <div class="matiere">${escapeHtml(s.matiere)}</div>
+          ${s.sujet ? `<div class="sujet">${escapeHtml(s.sujet)}</div>` : ''}
+        </div>
+      </div>
+      <div class="meta">
+        <span>📅 ${fmtDate(s.revoirDate)} · ${when}</span>
+      </div>
+      <button class="done-btn" data-id="${s.id}">✓ Révisé</button>
+    `;
+    card.querySelector('.done-btn').addEventListener('click', async ()=>{
+      const target = sessions.find(x=>x.id===s.id);
+      if(target){ target.revu = true; await persist(); renderAccueil(); renderPlanning(); showToast("Marqué comme révisé ✓"); }
+    });
+    return card;
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ---------- HISTORIQUE ----------
+  function renderHistorique(){
+    $('#histCount').textContent = sessions.length ? '('+sessions.length+')' : '';
+    const matieresUsed = ["toutes", ...Array.from(new Set(sessions.map(s=>s.matiere)))];
+    const filterBar = $('#histFilters');
+    filterBar.innerHTML = '';
+    matieresUsed.forEach(m=>{
+      const chip = document.createElement('button');
+      chip.className = 'c-chip' + (histFilter===m ? ' sel' : '');
+      chip.textContent = m === 'toutes' ? 'Toutes' : m;
+      chip.style.whiteSpace = 'nowrap';
+      chip.addEventListener('click', ()=>{ histFilter = m; renderHistorique(); });
+      filterBar.appendChild(chip);
+    });
+
+    const list = $('#histList');
+    list.innerHTML = '';
+    const filtered = histFilter==='toutes' ? sessions : sessions.filter(s=>s.matiere===histFilter);
+    if(filtered.length===0){
+      list.innerHTML = '<div class="c-empty">Aucune séance ici.</div>';
+      return;
+    }
+    filtered.forEach(s=>list.appendChild(sessionCard(s)));
+  }
+
+  // ---------- PLANNING ----------
+  function renderPlanning(){
+    const upcoming = sessions.filter(s=>s.revoirDate && !s.revu).sort((a,b)=>a.revoirDate.localeCompare(b.revoirDate));
+    $('#planCount').textContent = upcoming.length ? '('+upcoming.length+')' : '';
+    const list = $('#planList');
+    list.innerHTML = '';
+    if(upcoming.length===0){
+      list.innerHTML = '<div class="c-empty">Aucune révision programmée.<br>Active "Programmer une révision" en ajoutant une séance.</div>';
+      return;
+    }
+    upcoming.forEach(s=>list.appendChild(reviewCard(s)));
+  }
+
+  // ---------- BILAN / EXPORT ----------
+  let bilanPeriod = 'semaine';
+
+  function filterByPeriod(period){
+    if(period==='tout') return sessions.slice();
+    const days = period==='semaine' ? 6 : 29;
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    const fromISO = d.toISOString().slice(0,10);
+    return sessions.filter(s=>s.date >= fromISO && s.date <= todayISO());
+  }
+
+  function periodLabel(period){
+    return period==='semaine' ? 'Cette semaine' : (period==='mois' ? 'Ce mois-ci (30 derniers jours)' : 'Depuis le début du suivi');
+  }
+
+  function renderBilan(){
+    const filtered = filterByPeriod(bilanPeriod);
+    const totalMin = filtered.reduce((a,s)=>a+s.duree,0);
+    const moyDiff = filtered.length ? (filtered.reduce((a,s)=>a+s.difficulte,0)/filtered.length) : 0;
+
+    $('#bilanDateLine').textContent = "Généré le " + new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+
+    $('#bilanStats').innerHTML = `
+      <div class="bilan-stat"><span class="num">${totalMin>=60?(Math.round(totalMin/6)/10)+'h':totalMin+'min'}</span><span class="lbl">temps total</span></div>
+      <div class="bilan-stat"><span class="num">${filtered.length}</span><span class="lbl">séances</span></div>
+      <div class="bilan-stat"><span class="num">${filtered.length?moyDiff.toFixed(1):'-'}</span><span class="lbl">difficulté moy.</span></div>
+    `;
+
+    const byMatiere = {};
+    filtered.forEach(s=>{
+      if(!byMatiere[s.matiere]) byMatiere[s.matiere] = {temps:0,count:0,diffSum:0};
+      byMatiere[s.matiere].temps += s.duree;
+      byMatiere[s.matiere].count += 1;
+      byMatiere[s.matiere].diffSum += s.difficulte;
+    });
+    const rows = Object.keys(byMatiere).map(m=>({
+      matiere:m, temps:byMatiere[m].temps, count:byMatiere[m].count,
+      diffMoy: byMatiere[m].diffSum/byMatiere[m].count
+    })).sort((a,b)=>b.temps-a.temps);
+
+    const table = $('#bilanTable');
+    if(rows.length===0){
+      table.innerHTML = '<tr><td style="padding:16px 0;color:var(--ink-faint);font-style:italic;">Aucune séance sur cette période.</td></tr>';
+    } else {
+      let html = '<tr><th>Matière</th><th class="tnum">Temps</th><th class="tnum">Séances</th><th class="tnum">Difficulté</th></tr>';
+      rows.forEach(r=>{
+        const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
+        html += `<tr><td>${escapeHtml(r.matiere)}</td><td class="tnum">${t}</td><td class="tnum">${r.count}</td><td class="tnum">${r.diffMoy.toFixed(1)}/5</td></tr>`;
+      });
+      table.innerHTML = html;
+    }
+    return {filtered, totalMin, moyDiff, rows};
+  }
+
+  function bilanShareText(){
+    const {filtered, totalMin, moyDiff, rows} = renderBilan();
+    const name = $('#bilanNameInput').value.trim();
+    let txt = `Bilan de révisions${name ? ' — ' + name : ''}\n`;
+    txt += `${periodLabel(bilanPeriod)}\n\n`;
+    txt += `Temps total : ${totalMin>=60?(Math.round(totalMin/6)/10)+'h':totalMin+'min'}\n`;
+    txt += `Séances : ${filtered.length}\n`;
+    txt += `Difficulté moyenne : ${filtered.length?moyDiff.toFixed(1)+'/5':'-'}\n\n`;
+    rows.forEach(r=>{
+      const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
+      txt += `- ${r.matiere} : ${t}, ${r.count} séance(s), difficulté ${r.diffMoy.toFixed(1)}/5\n`;
+    });
+    return txt;
+  }
+
+  $('#openBilanBtn').addEventListener('click', ()=>{
+    $('#bilanOverlay').classList.add('show');
+    renderBilan();
+  });
+  $('#closeBilanBtn').addEventListener('click', ()=>{
+    $('#bilanOverlay').classList.remove('show');
+  });
+  $('#bilanPeriodChips').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.c-chip');
+    if(!btn) return;
+    bilanPeriod = btn.dataset.p;
+    $$('#bilanPeriodChips .c-chip').forEach(c=>c.classList.toggle('sel', c===btn));
+    renderBilan();
+  });
+  $('#bilanNameInput').addEventListener('input', renderBilan);
+
+  $('#bilanPrintBtn').addEventListener('click', ()=>{
+    try{ window.print(); }catch(e){ showToast("Impression indisponible ici"); }
+  });
+
+  $('#bilanShareBtn').addEventListener('click', async ()=>{
+    const text = bilanShareText();
+    const name = $('#bilanNameInput').value.trim();
+    if(navigator.share){
+      try{
+        await navigator.share({ title: "Bilan de révisions" + (name?" — "+name:""), text: text });
+        return;
+      }catch(e){ /* utilisateur a annulé ou API indisponible, on tente le repli */ }
+    }
+    try{
+      const blob = new Blob([text], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bilan-revisions.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Fichier téléchargé");
+    }catch(e){
+      showToast("Partage indisponible");
+    }
+  });
+
+  // ---------- STATISTIQUES ----------
+  function renderStatistiques(){
+    const totalMin = sessions.reduce((a,s)=>a+s.duree,0);
+    $('#statTotalTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
+    $('#statTotalSessions').textContent = sessions.length;
+    const moyDiff = sessions.length ? (sessions.reduce((a,s)=>a+s.difficulte,0)/sessions.length) : 0;
+    $('#statMoyDiff').textContent = sessions.length ? moyDiff.toFixed(1)+"/5" : "-";
+
+    const byMatiere = {};
+    sessions.forEach(s=>{
+      if(!byMatiere[s.matiere]) byMatiere[s.matiere] = {temps:0, count:0, diffSum:0};
+      byMatiere[s.matiere].temps += s.duree;
+      byMatiere[s.matiere].count += 1;
+      byMatiere[s.matiere].diffSum += s.difficulte;
+    });
+    const rows = Object.keys(byMatiere).map(m=>({
+      matiere:m,
+      temps: byMatiere[m].temps,
+      count: byMatiere[m].count,
+      diffMoy: byMatiere[m].diffSum / byMatiere[m].count
+    })).sort((a,b)=>b.temps-a.temps);
+
+    const wrap = $('#statBars');
+    wrap.innerHTML = '';
+    if(rows.length===0){
+      wrap.innerHTML = '<div class="c-empty">Pas encore de séances à analyser.</div>';
+    } else {
+      const maxTemps = Math.max(...rows.map(r=>r.temps));
+      rows.forEach(r=>{
+        const row = document.createElement('div');
+        row.className = 'c-bar-row';
+        const pct = Math.max(6, Math.round((r.temps/maxTemps)*100));
+        const timeLbl = r.temps>=60 ? (Math.round(r.temps/6)/10)+"h" : r.temps+"min";
+        row.innerHTML = `
+          <div class="bar-top">
+            <span class="bar-name">${escapeHtml(r.matiere)}</span>
+            <span class="bar-val">${timeLbl}</span>
+          </div>
+          <div class="bar-track" style="background:var(--paper-line);height:9px;border-radius:5px;overflow:hidden;">
+            <div class="c-bar-fill" style="width:${pct}%;background:var(${matiereColor(r.matiere)});"></div>
+          </div>
+          <div class="c-bar-sub">
+            <span>${r.count} séance${r.count>1?'s':''}</span>
+            <span>difficulté moy. ${r.diffMoy.toFixed(1)}/5</span>
+          </div>
+        `;
+        wrap.appendChild(row);
+      });
+    }
+
+    $('#statScheduleNote').innerHTML =
+      `<b>Matières personnalisées.</b> La liste des matières proposées dans "Ajouter" et "Minuteur" est basée sur ton emploi du temps (Mathématiques, Français, Physique-Chimie, Histoire-Géographie, Anglais LV1, Allemand LV2, Numérique &amp; Sc. Info, Enseignement scientifique, EMC).`;
+  }
+
+  // ---------- MINUTEUR ----------
+  let timerSeconds = 0;
+  let timerRunning = false;
+  let timerInterval = null;
+  let timerMatiere = null;
+
+  function buildTimerMatiereChips(){
+    const wrap = $('#timerMatiereChips');
+    wrap.innerHTML = '';
+    MATIERES_DEFAULT.forEach(m=>{
+      const chip = document.createElement('button');
+      chip.className = 'c-chip';
+      chip.type='button';
+      chip.textContent = m;
+      chip.addEventListener('click', ()=>{
+        timerMatiere = m;
+        $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+        chip.classList.add('sel');
+      });
+      wrap.appendChild(chip);
+    });
+  }
+  buildTimerMatiereChips();
+
+  function fmtTimer(sec){
+    const h = Math.floor(sec/3600);
+    const m = Math.floor((sec%3600)/60);
+    const s = sec%60;
+    const pad = (n)=>String(n).padStart(2,'0');
+    return h>0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+
+  function renderTimerDisplay(){
+    $('#timerDisplay').textContent = fmtTimer(timerSeconds);
+    $('#timerDisplay').classList.toggle('running', timerRunning);
+    $('#timerFinish').disabled = timerSeconds < 60;
+    $('#timerSub').textContent = timerRunning ? "En cours..." : (timerSeconds>0 ? "En pause" : "Prêt à démarrer");
+    $('#timerStart').textContent = timerRunning ? '⏸' : '▶';
+    const navBtn = document.querySelector('.c-nav-btn[data-view="minuteur"]');
+    navBtn.classList.toggle('has-run', timerRunning);
+  }
+
+  $('#timerStart').addEventListener('click', ()=>{
+    timerRunning = !timerRunning;
+    if(timerRunning){
+      timerInterval = setInterval(()=>{
+        timerSeconds++;
+        renderTimerDisplay();
+      }, 1000);
+    } else {
+      clearInterval(timerInterval);
+    }
+    renderTimerDisplay();
+  });
+
+  $('#timerReset').addEventListener('click', ()=>{
+    timerRunning = false;
+    clearInterval(timerInterval);
+    timerSeconds = 0;
+    renderTimerDisplay();
+  });
+
+  $('#timerFinish').addEventListener('click', ()=>{
+    timerRunning = false;
+    clearInterval(timerInterval);
+    const minutes = Math.max(1, Math.round(timerSeconds/60));
+
+    switchView('ajouter');
+    if(timerMatiere){
+      selectedMatiere = timerMatiere;
+      $$('.c-chip').forEach(c=>{
+        if($('#matiereChips').contains(c)) c.classList.toggle('sel', c.textContent===timerMatiere);
+      });
+    }
+    const sujetVal = $('#timerSujetInput').value.trim();
+    if(sujetVal) $('#sujetInput').value = sujetVal;
+    selectedDuree = minutes;
+    $('#dureeInput').value = minutes;
+    $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', parseInt(b.dataset.v,10)===minutes));
+
+    timerSeconds = 0;
+    timerMatiere = null;
+    $('#timerSujetInput').value = '';
+    $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+    renderTimerDisplay();
+    showToast("Durée transférée, complète et enregistre ta séance");
+  });
+
+  renderTimerDisplay();
+
+  // ---------- INIT ----------
+  async function init(){
+    $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+    $('#dateInput').value = todayISO();
+    await loadSessions();
+    updateRevoirSub();
+    renderAccueil();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
