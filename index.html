@@ -545,6 +545,13 @@
   .c-eval-card .notes{font-size:12px;color:var(--ink-soft);margin-top:7px;font-style:italic;border-top:1px dashed var(--paper-line);padding-top:6px;}
   .c-eval-card.soon{border-left-color:var(--o);}
   .c-eval-card .del{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;}
+  .c-matiere-eval-hint{
+    font-size:11.5px;
+    color:var(--margin);
+    background:#F6E1DD;
+    border-radius:4px;
+    padding:7px 10px;
+  }
   .bilan-topbar{
     display:flex;
     justify-content:space-between;
@@ -669,6 +676,9 @@
         </div>
       </div>
 
+      <div class="c-sec-label" id="priosecLabel" style="display:none;">⚠️ Évaluations qui approchent</div>
+      <div id="listePrioEval"></div>
+
       <div class="c-sec-label">À revoir bientôt <span class="count" id="revoirCount"></span></div>
       <div id="listeARevoir"></div>
 
@@ -683,11 +693,22 @@
       <div class="c-sec-label">Nouvelle séance</div>
 
       <div class="c-field">
+        <div class="c-toggle-row">
+          <div>
+            <div class="txt">🗓️ Révision à programmer</div>
+            <div class="sub">Pas encore faite — juste à prévoir dans le planning</div>
+          </div>
+          <button class="c-switch" id="planModeSwitch"><span class="knob"></span></button>
+        </div>
+      </div>
+
+      <div class="c-field">
         <label>Matière</label>
         <div class="c-chips" id="matiereChips"></div>
         <div style="margin-top:8px;">
           <input type="text" id="matiereCustom" placeholder="Ou saisir une autre matière...">
         </div>
+        <div id="matiereEvalHint" style="display:none;margin-top:8px;"></div>
       </div>
 
       <div class="c-field">
@@ -696,33 +717,35 @@
       </div>
 
       <div class="c-field">
-        <label>Date</label>
+        <label id="dateFieldLabel">Date</label>
         <input type="date" id="dateInput">
       </div>
 
-      <div class="c-field">
-        <label>Durée</label>
-        <div class="c-duree-row">
-          <input type="number" id="dureeInput" min="0" placeholder="min">
-          <div class="c-quick" id="dureeQuick">
-            <button data-v="15">15</button>
-            <button data-v="30">30</button>
-            <button data-v="45">45</button>
-            <button data-v="60">60</button>
+      <div id="dureeDiffFields">
+        <div class="c-field">
+          <label>Durée</label>
+          <div class="c-duree-row">
+            <input type="number" id="dureeInput" min="0" placeholder="min">
+            <div class="c-quick" id="dureeQuick">
+              <button data-v="15">15</button>
+              <button data-v="30">30</button>
+              <button data-v="45">45</button>
+              <button data-v="60">60</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="c-field">
-        <label>Difficulté ressentie</label>
-        <div class="c-diff-row" id="diffRow">
-          <button class="c-diff-btn" data-v="1">😄</button>
-          <button class="c-diff-btn" data-v="2">🙂</button>
-          <button class="c-diff-btn" data-v="3">😐</button>
-          <button class="c-diff-btn" data-v="4">😕</button>
-          <button class="c-diff-btn" data-v="5">😩</button>
+        <div class="c-field">
+          <label>Difficulté ressentie</label>
+          <div class="c-diff-row" id="diffRow">
+            <button class="c-diff-btn" data-v="1">😄</button>
+            <button class="c-diff-btn" data-v="2">🙂</button>
+            <button class="c-diff-btn" data-v="3">😐</button>
+            <button class="c-diff-btn" data-v="4">😕</button>
+            <button class="c-diff-btn" data-v="5">😩</button>
+          </div>
+          <div class="c-diff-caption" id="diffCaption">Choisis un niveau</div>
         </div>
-        <div class="c-diff-caption" id="diffCaption">Choisis un niveau</div>
       </div>
 
       <div class="c-field">
@@ -730,7 +753,7 @@
         <textarea id="notesInput" placeholder="Ce qui a coincé, ce qu'il faut refaire..."></textarea>
       </div>
 
-      <div class="c-field">
+      <div class="c-field" id="revoirFieldWrap">
         <div class="c-toggle-row">
           <div>
             <div class="txt">Programmer une révision</div>
@@ -951,13 +974,26 @@
   // vigueur à la rentrée 2026-2027.
   const PROGRAMME_1ERE = {
     "Mathématiques": ["Second degré","Polynômes de degré 2 et 3","Dérivation locale","Dérivation et étude des fonctions","Variations et extremums","Suites arithmétiques et géométriques","Trigonométrie","Produit scalaire dans le plan","Géométrie repérée","Probabilités conditionnelles","Variables aléatoires","Loi de Bernoulli et loi binomiale","Échantillonnage","Algorithmique et Python"],
-    "Physique-Chimie": ["Constitution et transformations de la matière","Mouvement et interactions","L'énergie : conversions et transferts","Ondes et signaux"],
+    "Physique-Chimie": ["Composition et transformations d'un système chimique","Oxydoréduction et tableau d'avancement","Titrage par suivi colorimétrique","Schéma de Lewis et polarité des molécules","Cohésion et solubilité","Chimie organique : groupes caractéristiques et synthèses","Réactions de combustion","Loi de Coulomb et notion de champ","Description d'un fluide au repos","Mouvement d'un système : lois de Newton","Aspects énergétiques des phénomènes électriques","Aspects énergétiques des phénomènes mécaniques","Ondes mécaniques","La lumière : lentilles minces et modèle du photon","Mesures et incertitudes"],
     "Numérique & Sc. Info": ["Histoire de l'informatique","Représentation des données : types et valeurs de base","Représentation des données : types construits","Traitement de données en tables","Interactions homme-machine (IHM)","Architectures matérielles et systèmes d'exploitation","Langages et programmation"],
     "Histoire-Géographie": ["Histoire — L'Europe bouleversée par la Révolution française et l'Empire","Histoire — L'Europe et le monde au XIXe siècle","Histoire — La France dans l'Europe des nationalités (1848-1871)","Histoire — La IIIe République avant 1914","Histoire — La Première Guerre mondiale","Géographie — Comprendre un espace mondialisé","Géographie — Diversification des espaces et acteurs de la production","Géographie — Les espaces du tourisme dans le monde","Géographie — La France en Europe et dans le monde"],
     "Français": ["La littérature d'idées (XVIe-XVIIIe siècle)","La poésie (XIXe-XXIe siècle)","Le roman et le récit (XVIIIe-XXIe siècle)","Le théâtre (XVIIe-XXIe siècle)"],
     "Enseign. scientifique": ["Une longue histoire de la matière","Le Soleil, notre source d'énergie","La Terre, un astre singulier","Son et musique, porteurs d'information"],
     "EMC": ["Le droit et la démocratie","La République et ses valeurs","La citoyenneté et la responsabilité"]
   };
+
+  // Annales et sujets zéro du Bac, pour s'entraîner sur de vraies épreuves
+  // (le rappel actif sur des sujets réels est la technique la plus efficace
+  // selon Dunlosky et al., 2013). Le lien Maths pointe vers les sujets zéro
+  // officiels de la nouvelle épreuve anticipée (Eduscol) ; les autres matières
+  // utilisent la banque d'annales générale de l'Étudiant.
+  const ANNALES_LINKS = {
+    "Mathématiques": {label:"Sujets zéro épreuve anticipée + programme (Eduscol)", url:"https://eduscol.education.gouv.fr/5817/programmes-et-ressources-en-mathematiques-voie-gt"},
+    default: {label:"Annales du Bac — toutes matières (l'Étudiant)", url:"https://www.letudiant.fr/bac/annales-du-bac.html"}
+  };
+  function getAnnalesLink(matiere){
+    return ANNALES_LINKS[matiere] || ANNALES_LINKS.default;
+  }
 
   let sessions = [];
   let evaluations = [];
@@ -996,7 +1032,14 @@
   function occurrenceCount(matiere, sujet){
     if(!matiere) return 0;
     const s2 = sujet || '';
-    return sessions.filter(s => s.matiere===matiere && (s.sujet||'')===s2).length;
+    return doneSessions().filter(s => s.matiere===matiere && (s.sujet||'')===s2).length;
+  }
+
+  // Les séances "programmées" (pas encore faites) ne doivent jamais compter
+  // dans les statistiques, l'historique ou l'espacement des révisions —
+  // elles n'ont ni durée ni difficulté réelles.
+  function doneSessions(){
+    return sessions.filter(s => !s.planifiee);
   }
 
   // Intervalles croissants inspirés de la recherche sur la pratique distribuée
@@ -1011,6 +1054,26 @@
     const d = new Date(baseISO + "T00:00:00");
     d.setDate(d.getDate() + days);
     return d.toISOString().slice(0,10);
+  }
+
+  // Si une évaluation approche pour cette matière, resserre la date suggérée
+  // pour qu'elle tombe avant l'évaluation (idéalement 1 à 2 jours avant),
+  // plutôt que de laisser la révision programmée après le contrôle.
+  function nearestEvalFor(matiere){
+    const relevant = evaluations.filter(e => e.matiere===matiere && e.date >= todayISO());
+    if(!relevant.length) return null;
+    return relevant.sort((a,b)=>a.date.localeCompare(b.date))[0];
+  }
+
+  function adjustForUpcomingEval(matiere, suggestedISO){
+    const ev = nearestEvalFor(matiere);
+    if(!ev) return {date: suggestedISO, adjusted:false, eval:null};
+    if(suggestedISO < ev.date) return {date: suggestedISO, adjusted:false, eval:null};
+    const d = new Date(ev.date + "T00:00:00");
+    d.setDate(d.getDate() - 2);
+    let adjustedISO = d.toISOString().slice(0,10);
+    if(adjustedISO < todayISO()) adjustedISO = todayISO();
+    return {date: adjustedISO, adjusted:true, eval: ev};
   }
 
   // ---------- FIREBASE (Firestore) ----------
@@ -1120,6 +1183,21 @@
   $$('.c-nav-btn').forEach(b=>b.addEventListener('click', ()=>switchView(b.dataset.view)));
 
   // ---------- FORM ----------
+  function updateMatiereEvalHint(matiere){
+    const hint = $('#matiereEvalHint');
+    const upcoming = evaluations.filter(e => e.matiere===matiere && e.date >= todayISO())
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    if(!matiere || upcoming.length===0){
+      hint.style.display = 'none';
+      return;
+    }
+    const ev = upcoming[0];
+    const dJ = daysDiff(ev.date);
+    const when = dJ===0 ? "aujourd'hui" : (dJ===1 ? "demain" : `dans ${dJ}j`);
+    hint.style.display = 'block';
+    hint.innerHTML = `<div class="c-matiere-eval-hint">📌 ${ev.type==='dst'?'Devoir sur table':'Évaluation'} prévu(e) ${when} (${fmtDate(ev.date)})${ev.chapitre?' — '+escapeHtml(ev.chapitre):''}</div>`;
+  }
+
   function buildMatiereChips(){
     const wrap = $('#matiereChips');
     wrap.innerHTML = '';
@@ -1133,6 +1211,7 @@
         $('#matiereCustom').value = '';
         $$('.c-chip').forEach(c=>c.classList.remove('sel'));
         chip.classList.add('sel');
+        updateMatiereEvalHint(m);
       });
       wrap.appendChild(chip);
     });
@@ -1184,13 +1263,36 @@
     const baseISO = $('#dateInput').value || todayISO();
     const sujetVal = $('#sujetInput').value.trim();
     const occ = occurrenceCount(selectedMatiere, sujetVal);
-    const dt = suggestReviewDate(diff, baseISO, occ);
-    $('#revoirSub').textContent = "Suggestion : " + fmtDate(dt);
+    let dt = suggestReviewDate(diff, baseISO, occ);
+    const adj = adjustForUpcomingEval(selectedMatiere, dt);
+    dt = adj.date;
+    $('#revoirSub').textContent = adj.adjusted
+      ? `Resserré : ${fmtDate(dt)} (avant ton ${adj.eval.type==='dst'?'devoir sur table':'évaluation'} du ${fmtDate(adj.eval.date)})`
+      : "Suggestion : " + fmtDate(dt);
     if(!revoirDateManual){
       $('#revoirDateInput').value = dt;
     }
   }
   $('#dateInput').addEventListener('change', updateRevoirSub);
+
+  let planMode = false;
+
+  function updatePlanModeUI(){
+    $('#planModeSwitch').classList.toggle('on', planMode);
+    $('#dureeDiffFields').style.display = planMode ? 'none' : 'block';
+    $('#revoirFieldWrap').style.display = planMode ? 'none' : 'block';
+    $('#dateFieldLabel').textContent = planMode ? 'Date prévue pour la révision' : 'Date';
+    $('#saveBtn').textContent = planMode ? 'Programmer la révision' : 'Enregistrer la séance';
+    if(planMode){
+      // Une révision programmée doit logiquement tomber aujourd'hui ou plus tard.
+      if($('#dateInput').value < todayISO()) $('#dateInput').value = todayISO();
+    }
+  }
+
+  $('#planModeSwitch').addEventListener('click', ()=>{
+    planMode = !planMode;
+    updatePlanModeUI();
+  });
 
   function resetForm(){
     selectedMatiere = null;
@@ -1198,6 +1300,7 @@
     selectedDiff = null;
     revoirOn = true;
     revoirDateManual = false;
+    planMode = false;
     $('#matiereCustom').value = '';
     $('#sujetInput').value = '';
     $('#dureeInput').value = '';
@@ -1209,17 +1312,41 @@
     $('#diffCaption').textContent = "Choisis un niveau";
     $('#revoirSwitch').classList.add('on');
     $('#revoirDateWrap').style.display = 'block';
+    $('#matiereEvalHint').style.display = 'none';
+    updatePlanModeUI();
     updateRevoirSub();
   }
 
   $('#saveBtn').addEventListener('click', async ()=>{
     if(!selectedMatiere){ showToast("Choisis une matière"); return; }
     const sujet = $('#sujetInput').value.trim();
+    const notes = $('#notesInput').value.trim();
+
+    if(planMode){
+      const plannedDate = $('#dateInput').value || todayISO();
+      const session = {
+        matiere: selectedMatiere,
+        sujet: sujet,
+        date: todayISO(),
+        duree: 0,
+        difficulte: null,
+        notes: notes,
+        revoirDate: plannedDate,
+        revu: false,
+        planifiee: true
+      };
+      const ok = await apiCreate(session);
+      if(ok){
+        showToast("Révision programmée ✓");
+        switchView('planning');
+      }
+      return;
+    }
+
     const date = $('#dateInput').value || todayISO();
     const duree = parseInt($('#dureeInput').value,10);
     if(!duree || duree<=0){ showToast("Indique une durée"); return; }
     if(!selectedDiff){ showToast("Choisis une difficulté"); return; }
-    const notes = $('#notesInput').value.trim();
 
     const session = {
       matiere: selectedMatiere,
@@ -1228,8 +1355,9 @@
       duree: duree,
       difficulte: selectedDiff,
       notes: notes,
-      revoirDate: revoirOn ? ($('#revoirDateInput').value || suggestReviewDate(selectedDiff, date, occurrenceCount(selectedMatiere, sujet))) : null,
-      revu: false
+      revoirDate: revoirOn ? ($('#revoirDateInput').value || adjustForUpcomingEval(selectedMatiere, suggestReviewDate(selectedDiff, date, occurrenceCount(selectedMatiere, sujet))).date) : null,
+      revu: false,
+      planifiee: false
     };
     const ok = await apiCreate(session);
     if(ok){
@@ -1242,10 +1370,38 @@
   function renderAccueil(){
     const now = new Date();
     const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return d.toISOString().slice(0,10);})();
-    const weekSessions = sessions.filter(s=>s.date >= weekAgoISO && s.date <= todayISO());
+    const weekSessions = doneSessions().filter(s=>s.date >= weekAgoISO && s.date <= todayISO());
     const totalMin = weekSessions.reduce((a,s)=>a+s.duree,0);
     $('#statTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
     $('#statSessions').textContent = weekSessions.length;
+
+    // Évaluations qui approchent (10 prochains jours) — priorité de révision
+    const prioEvals = evaluations.filter(e => e.date >= todayISO() && daysDiff(e.date) <= 10)
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    const prioWrap = $('#listePrioEval');
+    prioWrap.innerHTML = '';
+    if(prioEvals.length === 0){
+      $('#priosecLabel').style.display = 'none';
+    } else {
+      $('#priosecLabel').style.display = 'block';
+      prioEvals.slice(0,3).forEach(ev=>{
+        const dJ = daysDiff(ev.date);
+        const when = dJ===0 ? "aujourd'hui" : (dJ===1 ? "demain" : `dans ${dJ}j`);
+        const card = document.createElement('div');
+        card.className = 'c-eval-card soon';
+        card.innerHTML = `
+          <div class="top-row">
+            <div>
+              <span class="c-eval-type-badge ${ev.type==='dst'?'dst':''}">${ev.type==='dst' ? '📚 Devoir sur table' : '🔍 Évaluation'}</span>
+              <div class="matiere">${escapeHtml(ev.matiere)}${ev.chapitre ? ' — '+escapeHtml(ev.chapitre) : ''}</div>
+            </div>
+          </div>
+          <div class="meta"><span>📅 ${when}, le ${fmtDate(ev.date)} — pense à programmer une révision</span></div>
+          <a href="${getAnnalesLink(ev.matiere).url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:11px;color:var(--b);text-decoration:none;">📖 ${escapeHtml(getAnnalesLink(ev.matiere).label)} →</a>
+        `;
+        prioWrap.appendChild(card);
+      });
+    }
 
     const upcoming = sessions.filter(s=>s.revoirDate && !s.revu).sort((a,b)=>a.revoirDate.localeCompare(b.revoirDate));
     const dueSoon = upcoming.filter(s=>daysDiff(s.revoirDate) <= 2);
@@ -1260,8 +1416,8 @@
       dueSoon.slice(0,4).forEach(s=>listARevoir.appendChild(reviewCard(s)));
     }
 
-    const recent = sessions.slice(0,4);
-    $('#recentCount').textContent = sessions.length ? '('+sessions.length+')' : '';
+    const recent = doneSessions().slice(0,4);
+    $('#recentCount').textContent = doneSessions().length ? '('+doneSessions().length+')' : '';
     const listRecentes = $('#listeRecentes');
     listRecentes.innerHTML = '';
     if(recent.length === 0){
@@ -1324,6 +1480,7 @@
     card.innerHTML = `
       <div class="top-row">
         <div>
+          ${s.planifiee ? '<span class="c-eval-type-badge">🗓️ Programmée</span><br>' : ''}
           <div class="matiere">${escapeHtml(s.matiere)}</div>
           ${s.sujet ? `<div class="sujet">${escapeHtml(s.sujet)}</div>` : ''}
         </div>
@@ -1364,7 +1521,7 @@
 
     const list = $('#histList');
     list.innerHTML = '';
-    const filtered = histFilter==='toutes' ? sessions : sessions.filter(s=>s.matiere===histFilter);
+    const filtered = histFilter==='toutes' ? doneSessions() : doneSessions().filter(s=>s.matiere===histFilter);
     if(filtered.length===0){
       list.innerHTML = '<div class="c-empty">Aucune séance ici.</div>';
       return;
@@ -1516,6 +1673,7 @@
         </div>
         <div class="meta"><span>📅 ${fmtDate(ev.date)} · ${when}</span></div>
         ${ev.notes ? `<div class="notes">${escapeHtml(ev.notes)}</div>` : ''}
+        <a href="${getAnnalesLink(ev.matiere).url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:11px;color:var(--b);text-decoration:none;">📖 ${escapeHtml(getAnnalesLink(ev.matiere).label)} →</a>
       `;
       card.querySelector('.del').addEventListener('click', async ()=>{
         await evalDelete(ev.id);
@@ -1529,12 +1687,12 @@
   let bilanPeriod = 'semaine';
 
   function filterByPeriod(period){
-    if(period==='tout') return sessions.slice();
+    if(period==='tout') return doneSessions();
     const days = period==='semaine' ? 6 : 29;
     const d = new Date();
     d.setDate(d.getDate() - days);
     const fromISO = d.toISOString().slice(0,10);
-    return sessions.filter(s=>s.date >= fromISO && s.date <= todayISO());
+    return doneSessions().filter(s=>s.date >= fromISO && s.date <= todayISO());
   }
 
   function periodLabel(period){
@@ -1760,7 +1918,7 @@
       const weekEnd = new Date(w+"T00:00:00");
       weekEnd.setDate(weekEnd.getDate()+6);
       const weekEndISO = weekEnd.toISOString().slice(0,10);
-      const inWeek = sessions.filter(s=>s.date>=w && s.date<=weekEndISO);
+      const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
       return { label: fmtWeekLabel(w), value: inWeek.reduce((a,s)=>a+s.duree,0) };
     });
     drawBarChart('#chartWeekly', data, {color:'var(--b)'});
@@ -1769,7 +1927,7 @@
   function renderWeekdayChart(){
     const dayLabels = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
     const sums = [0,0,0,0,0,0,0];
-    sessions.forEach(s=>{
+    doneSessions().forEach(s=>{
       const d = new Date(s.date+"T00:00:00");
       let idx = d.getDay();
       idx = idx===0 ? 6 : idx-1;
@@ -1785,7 +1943,7 @@
       const weekEnd = new Date(w+"T00:00:00");
       weekEnd.setDate(weekEnd.getDate()+6);
       const weekEndISO = weekEnd.toISOString().slice(0,10);
-      const inWeek = sessions.filter(s=>s.date>=w && s.date<=weekEndISO);
+      const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
       const avg = inWeek.length ? inWeek.reduce((a,s)=>a+s.difficulte,0)/inWeek.length : null;
       return { label: fmtWeekLabel(w), value: avg };
     });
@@ -1794,14 +1952,14 @@
 
   // ---------- STATISTIQUES ----------
   function renderStatistiques(){
-    const totalMin = sessions.reduce((a,s)=>a+s.duree,0);
+    const totalMin = doneSessions().reduce((a,s)=>a+s.duree,0);
     $('#statTotalTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
-    $('#statTotalSessions').textContent = sessions.length;
-    const moyDiff = sessions.length ? (sessions.reduce((a,s)=>a+s.difficulte,0)/sessions.length) : 0;
-    $('#statMoyDiff').textContent = sessions.length ? moyDiff.toFixed(1)+"/5" : "-";
+    $('#statTotalSessions').textContent = doneSessions().length;
+    const moyDiff = doneSessions().length ? (doneSessions().reduce((a,s)=>a+s.difficulte,0)/doneSessions().length) : 0;
+    $('#statMoyDiff').textContent = doneSessions().length ? moyDiff.toFixed(1)+"/5" : "-";
 
     const byMatiere = {};
-    sessions.forEach(s=>{
+    doneSessions().forEach(s=>{
       if(!byMatiere[s.matiere]) byMatiere[s.matiere] = {temps:0, count:0, diffSum:0};
       byMatiere[s.matiere].temps += s.duree;
       byMatiere[s.matiere].count += 1;
