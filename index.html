@@ -468,6 +468,22 @@
   }
   .c-note-box b{color:var(--ink);}
 
+  .c-chart-box{
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:10px 8px 4px 4px;
+    margin-bottom:6px;
+  }
+  .c-chart-box svg{display:block;}
+  .c-chart-empty-note{
+    font-size:11px;
+    color:var(--ink-faint);
+    text-align:center;
+    padding:20px 8px;
+    font-family:'Kalam',cursive;
+  }
+
   .c-export-btn{
     width:100%;
     padding:12px;
@@ -483,7 +499,7 @@
   }
 
   /* BILAN OVERLAY */
-  #bilanOverlay{
+  #bilanOverlay, #evalOverlay{
     display:none;
     position:absolute;
     inset:0;
@@ -492,7 +508,43 @@
     overflow-y:auto;
     border-radius:18px;
   }
-  #bilanOverlay.show{display:block;}
+  #bilanOverlay.show, #evalOverlay.show{display:block;}
+  select{
+    width:100%;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:10px 11px;
+    border:1.5px solid var(--paper-line);
+    border-radius:4px;
+    background:var(--card-bg);
+    color:var(--ink);
+  }
+  .c-eval-card{
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-left:5px solid var(--margin);
+    border-radius:3px;
+    padding:11px 13px;
+    margin-bottom:10px;
+  }
+  .c-eval-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+  .c-eval-type-badge{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:700;
+    padding:2px 8px;
+    border-radius:20px;
+    background:#F2E9D8;
+    color:var(--ink-soft);
+    margin-bottom:5px;
+  }
+  .c-eval-type-badge.dst{background:#F6E1DD;color:var(--margin);}
+  .c-eval-card .matiere{font-weight:700;font-size:14px;}
+  .c-eval-card .chapitre{font-size:12.5px;color:var(--ink-soft);margin-top:1px;}
+  .c-eval-card .meta{display:flex;gap:10px;margin-top:8px;font-size:11.5px;color:var(--ink-soft);}
+  .c-eval-card .notes{font-size:12px;color:var(--ink-soft);margin-top:7px;font-style:italic;border-top:1px dashed var(--paper-line);padding-top:6px;}
+  .c-eval-card.soon{border-left-color:var(--o);}
+  .c-eval-card .del{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;}
   .bilan-topbar{
     display:flex;
     justify-content:space-between;
@@ -682,9 +734,12 @@
         <div class="c-toggle-row">
           <div>
             <div class="txt">Programmer une révision</div>
-            <div class="sub" id="revoirSub">Date suggérée selon la difficulté</div>
+            <div class="sub" id="revoirSub">Intervalle croissant selon la répétition et la difficulté</div>
           </div>
           <button class="c-switch on" id="revoirSwitch"><span class="knob"></span></button>
+        </div>
+        <div id="revoirDateWrap" style="margin-top:8px;">
+          <input type="date" id="revoirDateInput">
         </div>
       </div>
 
@@ -715,6 +770,10 @@
       </div>
 
       <button class="c-timer-finish" id="timerFinish" disabled>Terminer et enregistrer la séance</button>
+
+      <div class="c-note-box" style="margin-top:16px;">
+        💡 <b>Astuce efficace.</b> Se tester soi-même (réciter, refaire un exercice sans le corrigé, puis vérifier) marche bien mieux que relire ses notes. Alterner deux matières dans la même session aide aussi à mieux retenir.
+      </div>
     </div>
 
     <!-- HISTORIQUE -->
@@ -726,8 +785,53 @@
 
     <!-- PLANNING -->
     <div class="c-view" id="view-planning">
+      <div class="c-sec-label">Évaluations à venir <span class="count" id="evalCount"></span></div>
+      <div id="evalList"></div>
+      <button class="c-export-btn" id="openEvalBtn" style="margin-bottom:24px;">📝 Ajouter une évaluation</button>
+
       <div class="c-sec-label">Planning des révisions <span class="count" id="planCount"></span></div>
       <div id="planList"></div>
+    </div>
+
+    <div id="evalOverlay">
+      <div class="bilan-topbar">
+        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Nouvelle évaluation</span>
+        <button class="close" id="closeEvalBtn">✕</button>
+      </div>
+      <div class="bilan-body">
+        <div class="c-field">
+          <label>Type</label>
+          <div class="c-diff-row" id="evalTypeRow">
+            <button class="c-diff-btn" data-v="dst" style="font-size:13px;flex:1;">📚<br>Devoir sur table<br><span style="font-size:10px;font-weight:400;color:var(--ink-soft);">(bilan global)</span></button>
+            <button class="c-diff-btn" data-v="evaluation" style="font-size:13px;flex:1;">🔍<br>Évaluation<br><span style="font-size:10px;font-weight:400;color:var(--ink-soft);">(un chapitre)</span></button>
+          </div>
+        </div>
+
+        <div class="c-field">
+          <label>Matière</label>
+          <div class="c-chips" id="evalMatiereChips"></div>
+        </div>
+
+        <div class="c-field" id="evalChapitreField" style="display:none;">
+          <label>Chapitre concerné</label>
+          <select id="evalChapitreSelect"></select>
+          <div id="evalChapitreCustomWrap" style="margin-top:8px; display:none;">
+            <input type="text" id="evalChapitreCustom" placeholder="Précise le chapitre...">
+          </div>
+        </div>
+
+        <div class="c-field">
+          <label>Date de l'évaluation</label>
+          <input type="date" id="evalDateInput">
+        </div>
+
+        <div class="c-field">
+          <label>Notes (optionnel)</label>
+          <textarea id="evalNotesInput" placeholder="Détails, format de l'épreuve..."></textarea>
+        </div>
+
+        <button class="c-submit" id="evalSaveBtn">Enregistrer l'évaluation</button>
+      </div>
     </div>
 
     <!-- STATISTIQUES -->
@@ -750,6 +854,15 @@
 
       <div class="c-sec-label">Répartition par matière</div>
       <div id="statBars"></div>
+
+      <div class="c-sec-label">Temps de révision par semaine</div>
+      <div class="c-chart-box" id="chartWeekly"></div>
+
+      <div class="c-sec-label">Jours de révision habituels</div>
+      <div class="c-chart-box" id="chartWeekday"></div>
+
+      <div class="c-sec-label">Évolution de la difficulté ressentie</div>
+      <div class="c-chart-box" id="chartDifficulty"></div>
 
       <div class="c-note-box" id="statScheduleNote"></div>
 
@@ -824,13 +937,30 @@
   const fbApp = initializeApp(firebaseConfig);
   const db = getFirestore(fbApp);
   const sessionsCol = collection(db, "sessions");
+  const evaluationsCol = collection(db, "evaluations");
 
 (function(){
   const MATIERES_DEFAULT = ["Mathématiques","Français","Physique-Chimie","Histoire-Géographie","Anglais LV1","Allemand LV2","Numérique & Sc. Info","Enseign. scientifique","EMC","Autre"];
   const COLORS = ["--y","--g","--b","--p","--o"];
   const DIFF_LABELS = {1:"Facile",2:"Plutôt facile",3:"Moyen",4:"Difficile",5:"Très difficile"};
 
+  // Programme officiel 1ère générale (repères indicatifs, compilés à partir de
+  // plusieurs sources secondaires du programme Eduscol — à recouper avec le
+  // plan de cours réel du professeur, l'ordre et le découpage précis pouvant
+  // varier). La spécialité Mathématiques suit le nouveau programme entrant en
+  // vigueur à la rentrée 2026-2027.
+  const PROGRAMME_1ERE = {
+    "Mathématiques": ["Second degré","Polynômes de degré 2 et 3","Dérivation locale","Dérivation et étude des fonctions","Variations et extremums","Suites arithmétiques et géométriques","Trigonométrie","Produit scalaire dans le plan","Géométrie repérée","Probabilités conditionnelles","Variables aléatoires","Loi de Bernoulli et loi binomiale","Échantillonnage","Algorithmique et Python"],
+    "Physique-Chimie": ["Constitution et transformations de la matière","Mouvement et interactions","L'énergie : conversions et transferts","Ondes et signaux"],
+    "Numérique & Sc. Info": ["Histoire de l'informatique","Représentation des données : types et valeurs de base","Représentation des données : types construits","Traitement de données en tables","Interactions homme-machine (IHM)","Architectures matérielles et systèmes d'exploitation","Langages et programmation"],
+    "Histoire-Géographie": ["Histoire — L'Europe bouleversée par la Révolution française et l'Empire","Histoire — L'Europe et le monde au XIXe siècle","Histoire — La France dans l'Europe des nationalités (1848-1871)","Histoire — La IIIe République avant 1914","Histoire — La Première Guerre mondiale","Géographie — Comprendre un espace mondialisé","Géographie — Diversification des espaces et acteurs de la production","Géographie — Les espaces du tourisme dans le monde","Géographie — La France en Europe et dans le monde"],
+    "Français": ["La littérature d'idées (XVIe-XVIIIe siècle)","La poésie (XIXe-XXIe siècle)","Le roman et le récit (XVIIIe-XXIe siècle)","Le théâtre (XVIIe-XXIe siècle)"],
+    "Enseign. scientifique": ["Une longue histoire de la matière","Le Soleil, notre source d'énergie","La Terre, un astre singulier","Son et musique, porteurs d'information"],
+    "EMC": ["Le droit et la démocratie","La République et ses valeurs","La citoyenneté et la responsabilité"]
+  };
+
   let sessions = [];
+  let evaluations = [];
   let selectedMatiere = null;
   let selectedDuree = null;
   let selectedDiff = null;
@@ -863,8 +993,21 @@
     return Math.round((d-today)/86400000);
   }
 
-  function suggestReviewDate(diff, baseISO){
-    const days = diff <= 2 ? 7 : (diff === 3 ? 4 : 2);
+  function occurrenceCount(matiere, sujet){
+    if(!matiere) return 0;
+    const s2 = sujet || '';
+    return sessions.filter(s => s.matiere===matiere && (s.sujet||'')===s2).length;
+  }
+
+  // Intervalles croissants inspirés de la recherche sur la pratique distribuée
+  // (Cepeda et al., cité dans Dunlosky et al., 2013) : l'écart optimal entre
+  // deux révisions grandit avec le nombre de répétitions déjà faites.
+  function suggestReviewDate(diff, baseISO, occurrence=0){
+    const baseIntervals = [2, 4, 7, 14, 30]; // jours
+    const idx = Math.min(occurrence, baseIntervals.length-1);
+    let days = baseIntervals[idx];
+    const factor = diff<=2 ? 1.3 : (diff>=4 ? 0.7 : 1.0);
+    days = Math.max(1, Math.round(days*factor));
     const d = new Date(baseISO + "T00:00:00");
     d.setDate(d.getDate() + days);
     return d.toISOString().slice(0,10);
@@ -925,6 +1068,37 @@
     loaded = true;
   }
 
+  // ---------- ÉVALUATIONS (Firestore) ----------
+  async function evalGet(){
+    try{
+      const q = query(evaluationsCol, orderBy("date", "asc"));
+      const snap = await getDocs(q);
+      evaluations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }catch(e){
+      showToast("Connexion au serveur impossible");
+    }
+  }
+
+  async function evalCreate(obj){
+    try{
+      await addDoc(evaluationsCol, obj);
+      await evalGet();
+      return true;
+    }catch(e){
+      showToast("Échec de l'enregistrement");
+      return false;
+    }
+  }
+
+  async function evalDelete(id){
+    try{
+      await deleteDoc(doc(db, "evaluations", id));
+      await evalGet();
+    }catch(e){
+      showToast("Échec de la suppression");
+    }
+  }
+
   function showToast(msg){
     const t = $('#toast');
     t.textContent = msg;
@@ -939,7 +1113,7 @@
     $$('.c-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
     if(name==='accueil') renderAccueil();
     if(name==='historique') renderHistorique();
-    if(name==='planning') renderPlanning();
+    if(name==='planning'){ renderPlanning(); renderEvaluations(); }
     if(name==='statistiques') renderStatistiques();
     if(name==='ajouter') resetForm();
   }
@@ -983,6 +1157,8 @@
     $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
   });
 
+  $('#sujetInput').addEventListener('input', updateRevoirSub);
+
   $('#diffRow').addEventListener('click', (e)=>{
     const btn = e.target.closest('.c-diff-btn');
     if(!btn) return;
@@ -995,15 +1171,24 @@
   $('#revoirSwitch').addEventListener('click', ()=>{
     revoirOn = !revoirOn;
     $('#revoirSwitch').classList.toggle('on', revoirOn);
+    $('#revoirDateWrap').style.display = revoirOn ? 'block' : 'none';
     updateRevoirSub();
   });
+
+  let revoirDateManual = false;
+  $('#revoirDateInput').addEventListener('input', ()=>{ revoirDateManual = true; });
 
   function updateRevoirSub(){
     if(!revoirOn){ $('#revoirSub').textContent = "Désactivé"; return; }
     const diff = selectedDiff || 3;
     const baseISO = $('#dateInput').value || todayISO();
-    const dt = suggestReviewDate(diff, baseISO);
+    const sujetVal = $('#sujetInput').value.trim();
+    const occ = occurrenceCount(selectedMatiere, sujetVal);
+    const dt = suggestReviewDate(diff, baseISO, occ);
     $('#revoirSub').textContent = "Suggestion : " + fmtDate(dt);
+    if(!revoirDateManual){
+      $('#revoirDateInput').value = dt;
+    }
   }
   $('#dateInput').addEventListener('change', updateRevoirSub);
 
@@ -1012,6 +1197,7 @@
     selectedDuree = null;
     selectedDiff = null;
     revoirOn = true;
+    revoirDateManual = false;
     $('#matiereCustom').value = '';
     $('#sujetInput').value = '';
     $('#dureeInput').value = '';
@@ -1022,6 +1208,7 @@
     $$('.c-diff-btn').forEach(b=>b.classList.remove('sel'));
     $('#diffCaption').textContent = "Choisis un niveau";
     $('#revoirSwitch').classList.add('on');
+    $('#revoirDateWrap').style.display = 'block';
     updateRevoirSub();
   }
 
@@ -1041,7 +1228,7 @@
       duree: duree,
       difficulte: selectedDiff,
       notes: notes,
-      revoirDate: revoirOn ? suggestReviewDate(selectedDiff, date) : null,
+      revoirDate: revoirOn ? ($('#revoirDateInput').value || suggestReviewDate(selectedDiff, date, occurrenceCount(selectedMatiere, sujet))) : null,
       revu: false
     };
     const ok = await apiCreate(session);
@@ -1198,6 +1385,146 @@
     upcoming.forEach(s=>list.appendChild(reviewCard(s)));
   }
 
+  // ---------- ÉVALUATIONS (UI) ----------
+  let evalType = null;
+  let evalMatiere = null;
+
+  function buildEvalMatiereChips(){
+    const wrap = $('#evalMatiereChips');
+    wrap.innerHTML = '';
+    MATIERES_DEFAULT.forEach(m=>{
+      const chip = document.createElement('button');
+      chip.className = 'c-chip';
+      chip.type = 'button';
+      chip.textContent = m;
+      chip.addEventListener('click', ()=>{
+        evalMatiere = m;
+        $$('#evalMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+        chip.classList.add('sel');
+        updateEvalChapitreField();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+  buildEvalMatiereChips();
+
+  $('#evalTypeRow').addEventListener('click', (e)=>{
+    const btn = e.target.closest('.c-diff-btn');
+    if(!btn) return;
+    evalType = btn.dataset.v;
+    $$('#evalTypeRow .c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
+    updateEvalChapitreField();
+  });
+
+  function updateEvalChapitreField(){
+    const field = $('#evalChapitreField');
+    const select = $('#evalChapitreSelect');
+    const customWrap = $('#evalChapitreCustomWrap');
+    // Un DST porte sur tout le programme : le champ chapitre n'a pas de sens.
+    if(evalType !== 'evaluation' || !evalMatiere){
+      field.style.display = 'none';
+      return;
+    }
+    const chapitres = PROGRAMME_1ERE[evalMatiere];
+    if(!chapitres){
+      // Pas de programme officiel disponible pour cette matière (langues, EMC...) : saisie libre.
+      field.style.display = 'block';
+      select.style.display = 'none';
+      customWrap.style.display = 'block';
+      return;
+    }
+    field.style.display = 'block';
+    select.style.display = 'block';
+    select.innerHTML = '<option value="">— Choisir un chapitre —</option>' +
+      chapitres.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
+      '<option value="__autre__">Autre (préciser)</option>';
+    select.onchange = ()=>{
+      customWrap.style.display = select.value==='__autre__' ? 'block' : 'none';
+    };
+    customWrap.style.display = 'none';
+  }
+
+  $('#openEvalBtn').addEventListener('click', ()=>{
+    evalType = null;
+    evalMatiere = null;
+    $$('#evalTypeRow .c-diff-btn').forEach(b=>b.classList.remove('sel'));
+    $$('#evalMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+    $('#evalChapitreField').style.display = 'none';
+    $('#evalChapitreCustom').value = '';
+    $('#evalNotesInput').value = '';
+    const d = new Date(); d.setDate(d.getDate()+7);
+    $('#evalDateInput').value = d.toISOString().slice(0,10);
+    $('#evalOverlay').classList.add('show');
+  });
+  $('#closeEvalBtn').addEventListener('click', ()=>{
+    $('#evalOverlay').classList.remove('show');
+  });
+
+  $('#evalSaveBtn').addEventListener('click', async ()=>{
+    if(!evalType){ showToast("Choisis un type d'évaluation"); return; }
+    if(!evalMatiere){ showToast("Choisis une matière"); return; }
+    const date = $('#evalDateInput').value;
+    if(!date){ showToast("Choisis une date"); return; }
+
+    let chapitre = '';
+    if(evalType==='evaluation'){
+      const select = $('#evalChapitreSelect');
+      if(select.style.display !== 'none'){
+        chapitre = select.value==='__autre__' ? $('#evalChapitreCustom').value.trim() : select.value;
+      } else {
+        chapitre = $('#evalChapitreCustom').value.trim();
+      }
+    }
+
+    const evalObj = {
+      type: evalType,
+      matiere: evalMatiere,
+      chapitre: chapitre,
+      date: date,
+      notes: $('#evalNotesInput').value.trim()
+    };
+    const ok = await evalCreate(evalObj);
+    if(ok){
+      showToast("Évaluation enregistrée ✓");
+      $('#evalOverlay').classList.remove('show');
+      renderEvaluations();
+    }
+  });
+
+  function renderEvaluations(){
+    const list = $('#evalList');
+    list.innerHTML = '';
+    const upcoming = evaluations.filter(e=>e.date >= todayISO()).sort((a,b)=>a.date.localeCompare(b.date));
+    $('#evalCount').textContent = upcoming.length ? '('+upcoming.length+')' : '';
+    if(upcoming.length===0){
+      list.innerHTML = '<div class="c-empty">Aucune évaluation programmée.</div>';
+      return;
+    }
+    upcoming.forEach(ev=>{
+      const dJ = daysDiff(ev.date);
+      const card = document.createElement('div');
+      card.className = 'c-eval-card' + (dJ<=3 ? ' soon' : '');
+      const when = dJ===0 ? "Aujourd'hui" : (dJ===1 ? "Demain" : `Dans ${dJ}j`);
+      card.innerHTML = `
+        <div class="top-row">
+          <div>
+            <span class="c-eval-type-badge ${ev.type==='dst'?'dst':''}">${ev.type==='dst' ? '📚 Devoir sur table' : '🔍 Évaluation'}</span>
+            <div class="matiere">${escapeHtml(ev.matiere)}</div>
+            ${ev.chapitre ? `<div class="chapitre">${escapeHtml(ev.chapitre)}</div>` : ''}
+          </div>
+          <button class="del" data-id="${ev.id}" title="Supprimer">✕</button>
+        </div>
+        <div class="meta"><span>📅 ${fmtDate(ev.date)} · ${when}</span></div>
+        ${ev.notes ? `<div class="notes">${escapeHtml(ev.notes)}</div>` : ''}
+      `;
+      card.querySelector('.del').addEventListener('click', async ()=>{
+        await evalDelete(ev.id);
+        renderEvaluations();
+      });
+      list.appendChild(card);
+    });
+  }
+
   // ---------- BILAN / EXPORT ----------
   let bilanPeriod = 'semaine';
 
@@ -1313,6 +1640,158 @@
     }
   });
 
+  // ---------- GRAPHIQUES (SVG fait main) ----------
+  function fmtMinShort(v){
+    return v>=60 ? (Math.round(v/6)/10)+"h" : v+"m";
+  }
+
+  function mondayOf(dateISO){
+    const d = new Date(dateISO + "T00:00:00");
+    const day = d.getDay();
+    const diff = (day===0 ? -6 : 1-day);
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0,10);
+  }
+
+  function lastNWeeksMondays(n){
+    const arr = [];
+    const todayMonday = mondayOf(todayISO());
+    for(let i=n-1;i>=0;i--){
+      const d = new Date(todayMonday + "T00:00:00");
+      d.setDate(d.getDate() - i*7);
+      arr.push(d.toISOString().slice(0,10));
+    }
+    return arr;
+  }
+
+  function fmtWeekLabel(mondayISO){
+    const d = new Date(mondayISO + "T00:00:00");
+    return d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+  }
+
+  function drawBarChart(containerSel, data, opts={}){
+    const el = $(containerSel);
+    if(!data.length || data.every(d=>!d.value)){
+      el.innerHTML = '<div class="c-chart-empty-note">Pas encore assez de données pour ce graphique.</div>';
+      return;
+    }
+    const W=340, H=140, padL=6, padR=6, padT=18, padB=22;
+    const chartW = W-padL-padR, chartH = H-padT-padB;
+    const maxV = Math.max(1, ...data.map(d=>d.value));
+    const n = data.length;
+    const gap = chartW/n;
+    const bw = Math.min(28, gap*0.62);
+    let bars='', labels='';
+    data.forEach((d,i)=>{
+      const x = padL + i*gap + (gap-bw)/2;
+      const h = (d.value/maxV)*chartH;
+      const y = padT + chartH - h;
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" rx="3" fill="${opts.color||'var(--b)'}"/>`;
+      if(d.value>0){
+        bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9" text-anchor="middle" fill="var(--ink-soft)" font-family="Inter, sans-serif">${fmtMinShort(d.value)}</text>`;
+      }
+      labels += `<text x="${(x+bw/2).toFixed(1)}" y="${H-6}" font-size="9.5" text-anchor="middle" fill="var(--ink-faint)" font-family="Inter, sans-serif">${escapeHtml(d.label)}</text>`;
+    });
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      <line x1="${padL}" y1="${padT+chartH}" x2="${W-padR}" y2="${padT+chartH}" stroke="var(--paper-line)" stroke-width="1"/>
+      ${bars}${labels}
+    </svg>`;
+  }
+
+  function drawLineChart(containerSel, data, opts={}){
+    const el = $(containerSel);
+    const valid = data.filter(d=>d.value!==null);
+    if(valid.length===0){
+      el.innerHTML = '<div class="c-chart-empty-note">Pas encore assez de données pour ce graphique.</div>';
+      return;
+    }
+    const W=340, H=140, padL=20, padR=10, padT=14, padB=22;
+    const chartW = W-padL-padR, chartH = H-padT-padB;
+    const minV = opts.min!==undefined ? opts.min : 0;
+    const maxV = opts.max!==undefined ? opts.max : Math.max(...valid.map(d=>d.value));
+    const n = data.length;
+    const stepX = n>1 ? chartW/(n-1) : 0;
+
+    const points = data.map((d,i)=>{
+      if(d.value===null) return null;
+      const x = padL + i*stepX;
+      const ratio = (d.value-minV)/((maxV-minV)||1);
+      const y = padT + chartH - ratio*chartH;
+      return {x,y};
+    });
+
+    let segs=[], current=[];
+    points.forEach(p=>{
+      if(p===null){ if(current.length){segs.push(current); current=[];} }
+      else current.push(p);
+    });
+    if(current.length) segs.push(current);
+
+    const pathsSvg = segs.map(seg=>{
+      const d = seg.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
+      return `<path d="${d}" fill="none" stroke="var(--margin)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }).join('');
+
+    const dotsSvg = points.map(p=> p ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--margin)"/>` : '').join('');
+
+    const labelsSvg = data.map((d,i)=>{
+      const x = padL + i*stepX;
+      return `<text x="${x.toFixed(1)}" y="${H-6}" font-size="9.5" text-anchor="middle" fill="var(--ink-faint)" font-family="Inter, sans-serif">${escapeHtml(d.label)}</text>`;
+    }).join('');
+
+    let gridSvg='';
+    if(opts.min!==undefined && opts.max!==undefined){
+      for(let v=Math.ceil(opts.min); v<=opts.max; v++){
+        const ratio = (v-minV)/((maxV-minV)||1);
+        const y = padT + chartH - ratio*chartH;
+        gridSvg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--paper-line)" stroke-width="1" stroke-dasharray="2,3"/>`;
+        gridSvg += `<text x="${padL-4}" y="${(y+3).toFixed(1)}" font-size="8" text-anchor="end" fill="var(--ink-faint)" font-family="Inter, sans-serif">${v}</text>`;
+      }
+    }
+
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+      ${gridSvg}${pathsSvg}${dotsSvg}${labelsSvg}
+    </svg>`;
+  }
+
+  function renderWeeklyChart(){
+    const weeks = lastNWeeksMondays(8);
+    const data = weeks.map(w=>{
+      const weekEnd = new Date(w+"T00:00:00");
+      weekEnd.setDate(weekEnd.getDate()+6);
+      const weekEndISO = weekEnd.toISOString().slice(0,10);
+      const inWeek = sessions.filter(s=>s.date>=w && s.date<=weekEndISO);
+      return { label: fmtWeekLabel(w), value: inWeek.reduce((a,s)=>a+s.duree,0) };
+    });
+    drawBarChart('#chartWeekly', data, {color:'var(--b)'});
+  }
+
+  function renderWeekdayChart(){
+    const dayLabels = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+    const sums = [0,0,0,0,0,0,0];
+    sessions.forEach(s=>{
+      const d = new Date(s.date+"T00:00:00");
+      let idx = d.getDay();
+      idx = idx===0 ? 6 : idx-1;
+      sums[idx] += s.duree;
+    });
+    const data = dayLabels.map((lbl,i)=>({label:lbl, value:sums[i]}));
+    drawBarChart('#chartWeekday', data, {color:'var(--g)'});
+  }
+
+  function renderDifficultyChart(){
+    const weeks = lastNWeeksMondays(8);
+    const data = weeks.map(w=>{
+      const weekEnd = new Date(w+"T00:00:00");
+      weekEnd.setDate(weekEnd.getDate()+6);
+      const weekEndISO = weekEnd.toISOString().slice(0,10);
+      const inWeek = sessions.filter(s=>s.date>=w && s.date<=weekEndISO);
+      const avg = inWeek.length ? inWeek.reduce((a,s)=>a+s.difficulte,0)/inWeek.length : null;
+      return { label: fmtWeekLabel(w), value: avg };
+    });
+    drawLineChart('#chartDifficulty', data, {min:1, max:5});
+  }
+
   // ---------- STATISTIQUES ----------
   function renderStatistiques(){
     const totalMin = sessions.reduce((a,s)=>a+s.duree,0);
@@ -1365,6 +1844,10 @@
 
     $('#statScheduleNote').innerHTML =
       `<b>Matières personnalisées.</b> La liste des matières proposées dans "Ajouter" et "Minuteur" est basée sur ton emploi du temps (Mathématiques, Français, Physique-Chimie, Histoire-Géographie, Anglais LV1, Allemand LV2, Numérique &amp; Sc. Info, Enseignement scientifique, EMC).`;
+
+    renderWeeklyChart();
+    renderWeekdayChart();
+    renderDifficultyChart();
   }
 
   // ---------- MINUTEUR ----------
@@ -1462,6 +1945,7 @@
     $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     $('#dateInput').value = todayISO();
     await loadSessions();
+    await evalGet();
     updateRevoirSub();
     renderAccueil();
   }
