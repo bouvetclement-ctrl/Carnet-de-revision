@@ -552,6 +552,35 @@
     border-radius:4px;
     padding:7px 10px;
   }
+  .c-sugg-card{
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-left:5px solid var(--g);
+    border-radius:3px;
+    padding:11px 13px;
+    margin-bottom:10px;
+  }
+  .c-sugg-card .top-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .c-sugg-card .matiere{font-weight:700;font-size:14px;}
+  .c-sugg-card .duree{
+    font-family:'Kalam',cursive;
+    font-weight:700;
+    font-size:16px;
+    color:var(--g);
+    white-space:nowrap;
+  }
+  .c-sugg-card .reasons{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+  .c-sugg-card .go-btn{
+    margin-top:8px;
+    border:1px solid var(--ink);
+    background:none;
+    color:var(--ink);
+    font-size:11.5px;
+    font-weight:600;
+    padding:5px 10px;
+    border-radius:20px;
+    cursor:pointer;
+  }
   .bilan-topbar{
     display:flex;
     justify-content:space-between;
@@ -676,6 +705,9 @@
         </div>
       </div>
 
+      <div class="c-sec-label" id="suggsecLabel" style="display:none;">🎯 Suggestions du jour</div>
+      <div id="listeSuggestions"></div>
+
       <div class="c-sec-label" id="priosecLabel" style="display:none;">⚠️ Évaluations qui approchent</div>
       <div id="listePrioEval"></div>
 
@@ -709,6 +741,11 @@
           <input type="text" id="matiereCustom" placeholder="Ou saisir une autre matière...">
         </div>
         <div id="matiereEvalHint" style="display:none;margin-top:8px;"></div>
+      </div>
+
+      <div class="c-field" id="linkEvalField" style="display:none;">
+        <label>Lier à une évaluation à venir (optionnel)</label>
+        <select id="linkEvalSelect"></select>
       </div>
 
       <div class="c-field">
@@ -995,6 +1032,53 @@
     return ANNALES_LINKS[matiere] || ANNALES_LINKS.default;
   }
 
+  // Emploi du temps réel de Kajetan (jours de cours par matière, 1=lundi..7=dimanche).
+  // Anglais LV1 a un créneau supplémentaire le vendredi, uniquement les semaines impaires.
+  const SCHEDULE_BASE = {
+    "Physique-Chimie": [1,4],
+    "Français": [1,3],
+    "Allemand LV2": [1,3],
+    "Numérique & Sc. Info": [1,3],
+    "Mathématiques": [2,5],
+    "Anglais LV1": [2,3],
+    "Histoire-Géographie": [2,3,4],
+    "Enseign. scientifique": [4]
+  };
+
+  function getISOWeekNumber(d){
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  }
+
+  function scheduleDaysFor(matiere, dateForParity){
+    const base = SCHEDULE_BASE[matiere];
+    if(!base) return [];
+    const days = [...base];
+    if(matiere === "Anglais LV1" && getISOWeekNumber(dateForParity) % 2 === 1){
+      days.push(5); // vendredi, semaines impaires seulement
+    }
+    return days;
+  }
+
+  // Prochaine date (à partir de demain) où cette matière a cours, en tenant
+  // compte de l'alternance de semaines pour Anglais LV1.
+  function nextClassDate(matiere, fromISO){
+    if(!SCHEDULE_BASE[matiere]) return null;
+    const from = new Date(fromISO + "T00:00:00");
+    for(let i=1; i<=13; i++){
+      const d = new Date(from);
+      d.setDate(d.getDate() + i);
+      const isoWeekday = d.getDay()===0 ? 7 : d.getDay();
+      if(scheduleDaysFor(matiere, d).includes(isoWeekday)){
+        return d.toISOString().slice(0,10);
+      }
+    }
+    return null;
+  }
+
   let sessions = [];
   let evaluations = [];
   let selectedMatiere = null;
@@ -1187,6 +1271,9 @@
     const hint = $('#matiereEvalHint');
     const upcoming = evaluations.filter(e => e.matiere===matiere && e.date >= todayISO())
       .sort((a,b)=>a.date.localeCompare(b.date));
+
+    updateLinkEvalField(upcoming);
+
     if(!matiere || upcoming.length===0){
       hint.style.display = 'none';
       return;
@@ -1196,6 +1283,34 @@
     const when = dJ===0 ? "aujourd'hui" : (dJ===1 ? "demain" : `dans ${dJ}j`);
     hint.style.display = 'block';
     hint.innerHTML = `<div class="c-matiere-eval-hint">📌 ${ev.type==='dst'?'Devoir sur table':'Évaluation'} prévu(e) ${when} (${fmtDate(ev.date)})${ev.chapitre?' — '+escapeHtml(ev.chapitre):''}</div>`;
+  }
+
+  function updateLinkEvalField(upcomingEvals){
+    const field = $('#linkEvalField');
+    const select = $('#linkEvalSelect');
+    if(!upcomingEvals || upcomingEvals.length===0){
+      field.style.display = 'none';
+      select.innerHTML = '';
+      return;
+    }
+    field.style.display = 'block';
+    select.innerHTML = '<option value="">— Aucune —</option>' +
+      upcomingEvals.map(ev=>{
+        const label = `${ev.type==='dst'?'Devoir sur table':'Évaluation'} — ${ev.chapitre || 'programme complet'} (${fmtDate(ev.date)})`;
+        return `<option value="${ev.id}">${escapeHtml(label)}</option>`;
+      }).join('');
+    // Sélectionne automatiquement la plus proche, mais reste modifiable.
+    select.value = upcomingEvals[0].id;
+    select.onchange = ()=>{
+      const chosen = upcomingEvals.find(ev=>ev.id===select.value);
+      if(chosen && chosen.chapitre && !$('#sujetInput').value.trim()){
+        $('#sujetInput').value = chosen.chapitre;
+      }
+    };
+    // Pré-remplit le sujet si vide, dès l'ouverture.
+    if(upcomingEvals[0].chapitre && !$('#sujetInput').value.trim()){
+      $('#sujetInput').value = upcomingEvals[0].chapitre;
+    }
   }
 
   function buildMatiereChips(){
@@ -1313,6 +1428,8 @@
     $('#revoirSwitch').classList.add('on');
     $('#revoirDateWrap').style.display = 'block';
     $('#matiereEvalHint').style.display = 'none';
+    $('#linkEvalField').style.display = 'none';
+    $('#linkEvalSelect').innerHTML = '';
     updatePlanModeUI();
     updateRevoirSub();
   }
@@ -1321,6 +1438,7 @@
     if(!selectedMatiere){ showToast("Choisis une matière"); return; }
     const sujet = $('#sujetInput').value.trim();
     const notes = $('#notesInput').value.trim();
+    const evalId = $('#linkEvalSelect').value || null;
 
     if(planMode){
       const plannedDate = $('#dateInput').value || todayISO();
@@ -1333,7 +1451,8 @@
         notes: notes,
         revoirDate: plannedDate,
         revu: false,
-        planifiee: true
+        planifiee: true,
+        evalId: evalId
       };
       const ok = await apiCreate(session);
       if(ok){
@@ -1357,7 +1476,8 @@
       notes: notes,
       revoirDate: revoirOn ? ($('#revoirDateInput').value || adjustForUpcomingEval(selectedMatiere, suggestReviewDate(selectedDiff, date, occurrenceCount(selectedMatiere, sujet))).date) : null,
       revu: false,
-      planifiee: false
+      planifiee: false,
+      evalId: evalId
     };
     const ok = await apiCreate(session);
     if(ok){
@@ -1367,6 +1487,85 @@
   });
 
   // ---------- ACCUEIL ----------
+  // ---------- SUGGESTIONS DU JOUR ----------
+  // Combine les révisions en retard/dues et les évaluations qui approchent
+  // pour proposer un ordre de priorité concret, avec une durée indicative.
+  // Ceci rend visible ce que fait l'algorithme (espacement + ajustement par
+  // évaluation) au lieu de le laisser caché dans le formulaire.
+  function computeDailySuggestions(){
+    const map = {};
+    const today = todayISO();
+
+    sessions.filter(s=>s.revoirDate && !s.revu).forEach(s=>{
+      const dJ = daysDiff(s.revoirDate);
+      if(dJ <= 1){
+        const urgency = dJ < 0 ? 100 + Math.abs(dJ)*5 : (dJ===0 ? 80 : 60);
+        if(!map[s.matiere]) map[s.matiere] = {matiere:s.matiere, score:0, reasons:[], base:20};
+        map[s.matiere].score = Math.max(map[s.matiere].score, urgency);
+        map[s.matiere].reasons.push(dJ<0 ? `révision en retard de ${Math.abs(dJ)}j` : (dJ===0 ? 'révision prévue aujourd\'hui' : 'révision prévue demain'));
+      }
+    });
+
+    evaluations.filter(e=>e.date >= today).forEach(e=>{
+      const dJ = daysDiff(e.date);
+      if(dJ <= 7){
+        const urgency = Math.max(15, 90 - dJ*10);
+        if(!map[e.matiere]) map[e.matiere] = {matiere:e.matiere, score:0, reasons:[], base:20};
+        map[e.matiere].score = Math.max(map[e.matiere].score, urgency);
+        map[e.matiere].reasons.push(`${e.type==='dst'?'devoir sur table':'évaluation'} ${dJ===0 ? "aujourd'hui" : (dJ===1?'demain':'dans '+dJ+'j')}`);
+        map[e.matiere].base = Math.max(map[e.matiere].base, dJ<=3 ? 35 : 25);
+      }
+    });
+
+    // Emploi du temps réel : un cours demain est une bonne occasion de réviser ce soir.
+    Object.keys(SCHEDULE_BASE).forEach(matiere=>{
+      const next = nextClassDate(matiere, today);
+      if(!next) return;
+      const dJ = daysDiff(next);
+      if(dJ === 1){
+        if(!map[matiere]) map[matiere] = {matiere, score:0, reasons:[], base:20};
+        map[matiere].score = Math.max(map[matiere].score, 55);
+        map[matiere].reasons.push('cours demain — à revoir ce soir');
+      }
+    });
+
+    return Object.values(map).sort((a,b)=>b.score-a.score).slice(0,3);
+  }
+
+  function renderSuggestions(){
+    const sugg = computeDailySuggestions();
+    const wrap = $('#listeSuggestions');
+    wrap.innerHTML = '';
+    if(sugg.length===0){
+      $('#suggsecLabel').style.display = 'none';
+      return;
+    }
+    $('#suggsecLabel').style.display = 'block';
+    sugg.forEach(s=>{
+      const card = document.createElement('div');
+      card.className = 'c-sugg-card';
+      card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
+      card.innerHTML = `
+        <div class="top-row">
+          <span class="matiere">${escapeHtml(s.matiere)}</span>
+          <span class="duree">~${s.base} min</span>
+        </div>
+        <div class="reasons">${escapeHtml(s.reasons.join(' · '))}</div>
+        <button class="go-btn" data-m="${escapeHtml(s.matiere)}">Réviser maintenant →</button>
+      `;
+      card.querySelector('.go-btn').addEventListener('click', ()=>{
+        switchView('ajouter');
+        selectedMatiere = s.matiere;
+        $$('#matiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===s.matiere));
+        $('#matiereCustom').value = '';
+        updateMatiereEvalHint(s.matiere);
+        $('#dureeInput').value = s.base;
+        $('#dureeInput').dispatchEvent(new Event('input'));
+      });
+      wrap.appendChild(card);
+    });
+  }
+
   function renderAccueil(){
     const now = new Date();
     const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return d.toISOString().slice(0,10);})();
@@ -1374,6 +1573,8 @@
     const totalMin = weekSessions.reduce((a,s)=>a+s.duree,0);
     $('#statTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
     $('#statSessions').textContent = weekSessions.length;
+
+    renderSuggestions();
 
     // Évaluations qui approchent (10 prochains jours) — priorité de révision
     const prioEvals = evaluations.filter(e => e.date >= todayISO() && daysDiff(e.date) <= 10)
@@ -1443,6 +1644,13 @@
     return html;
   }
 
+  function linkedEvalLabel(evalId){
+    if(!evalId) return null;
+    const ev = evaluations.find(e=>e.id===evalId);
+    if(!ev) return null;
+    return `${ev.type==='dst'?'Devoir sur table':'Évaluation'} du ${fmtDate(ev.date)}`;
+  }
+
   function sessionCard(s){
     const card = document.createElement('div');
     card.className = 'c-card';
@@ -1462,6 +1670,7 @@
       </div>
       ${s.notes ? `<div class="notes">${escapeHtml(s.notes)}</div>` : ''}
       ${s.revoirDate && !s.revu ? `<div class="review-pill ${daysDiff(s.revoirDate)<0?'late':''}">🔁 À revoir le ${fmtDate(s.revoirDate)}</div>` : ''}
+      ${linkedEvalLabel(s.evalId) ? `<div class="review-pill">🔗 ${linkedEvalLabel(s.evalId)}</div>` : ''}
     `;
     card.querySelector('.del').addEventListener('click', async ()=>{
       await apiDelete(s.id);
@@ -2001,7 +2210,7 @@
     }
 
     $('#statScheduleNote').innerHTML =
-      `<b>Matières personnalisées.</b> La liste des matières proposées dans "Ajouter" et "Minuteur" est basée sur ton emploi du temps (Mathématiques, Français, Physique-Chimie, Histoire-Géographie, Anglais LV1, Allemand LV2, Numérique &amp; Sc. Info, Enseignement scientifique, EMC).`;
+      `<b>Matières personnalisées.</b> La liste des matières proposées dans "Ajouter" et "Minuteur" est basée sur ton emploi du temps (Mathématiques, Français, Physique-Chimie, Histoire-Géographie, Anglais LV1, Allemand LV2, Numérique &amp; Sc. Info, Enseignement scientifique, EMC). Les jours de cours réels (avec l'alternance d'Anglais LV1 les semaines impaires) sont aussi utilisés pour les "Suggestions du jour" sur l'Accueil.`;
 
     renderWeeklyChart();
     renderWeekdayChart();
