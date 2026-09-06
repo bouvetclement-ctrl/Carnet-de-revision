@@ -509,7 +509,7 @@
     border-radius:18px;
   }
   #bilanOverlay.show, #evalOverlay.show, #onboardingOverlay.show, #compareOverlay.show, #accountOverlay.show{display:block;}
-  #onboardingOverlay{z-index:30;}
+  #onboardingOverlay{z-index:30;display:block;}
   .c-profile-badge{
     position:absolute;
     top:20px; right:20px;
@@ -707,8 +707,12 @@
 <body>
 
 <div class="carnet-app" id="app">
-  <div id="onboardingOverlay" class="show">
-    <div class="bilan-body" style="padding-top:60px;">
+  <div id="onboardingOverlay">
+    <div class="bilan-body" style="padding-top:60px;" id="onboardingLoadingWrap">
+      <div class="bilan-title">Chargement<span style="color:var(--margin);">.</span></div>
+      <div class="bilan-sub">Connexion en cours...</div>
+    </div>
+    <div class="bilan-body" style="padding-top:60px;display:none;" id="onboardingFormWrap">
       <div class="bilan-title">Bienvenue<span style="color:var(--margin);">.</span></div>
       <div class="bilan-sub" style="margin-bottom:22px;">Comment tu t'appelles ? Chacun garde ses propres données, et vous pourrez comparer vos statistiques.</div>
 
@@ -2502,13 +2506,14 @@
       const snap = await getDoc(doc(profilesCol, currentUid));
       if(snap.exists()){
         currentProfileName = snap.data().name;
-        $('#onboardingOverlay').classList.remove('show');
+        $('#onboardingOverlay').style.display = 'none';
         initApp();
       } else {
-        $('#onboardingOverlay').classList.add('show');
+        $('#onboardingLoadingWrap').style.display = 'none';
+        $('#onboardingFormWrap').style.display = 'block';
       }
     }catch(e){
-      showToast("Connexion au serveur impossible");
+      $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion impossible. Vérifie ta connexion internet et recharge la page.</div>';
     }
   }
 
@@ -2648,7 +2653,9 @@
       loadOrPromptProfile();
     }
   });
-  signInAnonymously(auth).catch(()=>showToast("Connexion impossible"));
+  signInAnonymously(auth).catch(()=>{
+    $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
+  });
 
   // ---------- INIT ----------
   async function initApp(){
