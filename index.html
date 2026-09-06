@@ -499,7 +499,7 @@
   }
 
   /* BILAN OVERLAY */
-  #bilanOverlay, #evalOverlay{
+  #bilanOverlay, #evalOverlay, #onboardingOverlay, #compareOverlay, #accountOverlay{
     display:none;
     position:absolute;
     inset:0;
@@ -508,7 +508,33 @@
     overflow-y:auto;
     border-radius:18px;
   }
-  #bilanOverlay.show, #evalOverlay.show{display:block;}
+  #bilanOverlay.show, #evalOverlay.show, #onboardingOverlay.show, #compareOverlay.show, #accountOverlay.show{display:block;}
+  #onboardingOverlay{z-index:30;}
+  .c-profile-badge{
+    position:absolute;
+    top:20px; right:20px;
+    font-size:11px;
+    font-weight:600;
+    color:var(--ink-soft);
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-radius:20px;
+    padding:4px 11px;
+    cursor:pointer;
+  }
+  .c-leader-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-radius:4px;
+    padding:11px 13px;
+    margin-bottom:9px;
+  }
+  .c-leader-row.me{border-left:4px solid var(--margin);}
+  .c-leader-row .name{font-weight:700;font-size:14px;}
+  .c-leader-row .val{font-family:'Kalam',cursive;font-weight:700;font-size:17px;color:var(--g);}
   select{
     width:100%;
     font-family:'Inter',sans-serif;
@@ -681,9 +707,75 @@
 <body>
 
 <div class="carnet-app" id="app">
+  <div id="onboardingOverlay" class="show">
+    <div class="bilan-body" style="padding-top:60px;">
+      <div class="bilan-title">Bienvenue<span style="color:var(--margin);">.</span></div>
+      <div class="bilan-sub" style="margin-bottom:22px;">Comment tu t'appelles ? Chacun garde ses propres données, et vous pourrez comparer vos statistiques.</div>
+
+      <div id="onboardingNewWrap">
+        <div class="c-field">
+          <input type="text" id="onboardingNameInput" placeholder="Ton prénom">
+        </div>
+        <button class="c-submit" id="onboardingSaveBtn">Commencer (nouveau profil)</button>
+        <button class="c-reset-link" id="showLoginLinkBtn" style="margin-top:16px;">J'ai déjà un profil sur un autre appareil</button>
+      </div>
+
+      <div id="onboardingLoginWrap" style="display:none;">
+        <div class="c-field">
+          <label>Email du profil</label>
+          <input type="text" id="loginEmailInput" placeholder="ton.profil@exemple.com">
+        </div>
+        <div class="c-field">
+          <label>Mot de passe</label>
+          <input type="password" id="loginPasswordInput" placeholder="••••••••">
+        </div>
+        <button class="c-submit" id="loginSubmitBtn">Se connecter</button>
+        <button class="c-reset-link" id="showNewLinkBtn" style="margin-top:16px;">Créer un nouveau profil à la place</button>
+      </div>
+    </div>
+  </div>
+
   <div class="c-header">
     <span class="eyebrow" id="dateToday"></span>
     <h1>Carnet de révisions<span class="dot">.</span></h1>
+    <div id="profileBadge" class="c-profile-badge"></div>
+  </div>
+
+  <div id="accountOverlay">
+    <div class="bilan-topbar">
+      <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Mon compte</span>
+      <button class="close" id="closeAccountBtn">✕</button>
+    </div>
+    <div class="bilan-body">
+      <div class="bilan-sub" id="accountProfileLine" style="margin-bottom:18px;"></div>
+
+      <div id="accountLinkedWrap" style="display:none;">
+        <div class="c-note-box">✅ Compte sauvegardé. Connecte-toi avec cet email sur tes autres appareils pour retrouver tes données.</div>
+      </div>
+
+      <div id="accountLinkWrap">
+        <div class="c-sec-label" style="margin-top:0;">Sauvegarder pour d'autres appareils</div>
+        <div class="bilan-sub">Crée un email + mot de passe pour ce profil, pour pouvoir t'y reconnecter depuis un autre téléphone ou ordinateur.</div>
+        <div class="c-field">
+          <label>Email</label>
+          <input type="text" id="linkEmailInput" placeholder="ton.profil@exemple.com">
+        </div>
+        <div class="c-field">
+          <label>Mot de passe</label>
+          <input type="password" id="linkPasswordInput" placeholder="8 caractères minimum">
+        </div>
+        <button class="c-submit" id="linkSaveBtn">Sauvegarder mon profil</button>
+      </div>
+
+      <div id="migrationWrap" style="display:none;">
+        <div class="c-sec-label">Anciennes données</div>
+        <div class="c-note-box" id="migrationNote"></div>
+        <button class="c-export-btn" id="migrationBtn" style="border-color:var(--g);color:#3F6B4C;margin-top:10px;">Récupérer ces données sur mon profil</button>
+      </div>
+
+      <div class="c-sec-label">Autre appareil, autre personne</div>
+      <button class="c-export-btn" id="switchProfileBtn" style="border-color:var(--margin);color:var(--margin);">Changer de profil sur cet appareil</button>
+    </div>
   </div>
 
   <div class="c-content">
@@ -927,7 +1019,20 @@
       <div class="c-note-box" id="statScheduleNote"></div>
 
       <button class="c-export-btn" id="openBilanBtn">📄 Générer un bilan à présenter</button>
+      <button class="c-export-btn" id="openCompareBtn" style="margin-top:10px;">👥 Comparer avec mes amis</button>
     </div>
+
+    <div id="compareOverlay">
+      <div class="bilan-topbar">
+        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Classement de la semaine</span>
+        <button class="close" id="closeCompareBtn">✕</button>
+      </div>
+      <div class="bilan-body">
+        <div class="bilan-sub">Temps de révision cumulé sur les 7 derniers jours.</div>
+        <div id="compareList" style="margin-top:14px;"></div>
+      </div>
+    </div>
+
 
   </div>
 
@@ -943,6 +1048,9 @@
       <div class="bilan-name-field">
         <input type="text" id="bilanNameInput" placeholder="Nom de l'élève (optionnel)">
       </div>
+      <div class="bilan-name-field">
+        <input type="email" id="bilanEmailToInput" placeholder="Email du destinataire (optionnel — parent, prof...)">
+      </div>
 
       <div class="bilan-period-chips" id="bilanPeriodChips">
         <button class="c-chip sel" data-p="semaine">Cette semaine</button>
@@ -956,6 +1064,7 @@
 
       <div class="bilan-actions">
         <button class="btn-print" id="bilanPrintBtn">🖨️ Imprimer / Enregistrer en PDF</button>
+        <button class="btn-share" id="bilanEmailBtn">✉️ Envoyer par email</button>
         <button class="btn-share" id="bilanShareBtn">↗ Partager (Messages, Mail...)</button>
       </div>
       <div class="bilan-foot">Généré avec Carnet de révisions</div>
@@ -991,13 +1100,19 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
     getFirestore, collection, addDoc, getDocs, deleteDoc,
-    updateDoc, doc, query, orderBy
+    updateDoc, doc, query, orderBy, where, setDoc, getDoc
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getAuth, signInAnonymously, onAuthStateChanged, signOut,
+    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const fbApp = initializeApp(firebaseConfig);
   const db = getFirestore(fbApp);
+  const auth = getAuth(fbApp);
   const sessionsCol = collection(db, "sessions");
   const evaluationsCol = collection(db, "evaluations");
+  const profilesCol = collection(db, "profiles");
 
 (function(){
   const MATIERES_DEFAULT = ["Mathématiques","Français","Physique-Chimie","Histoire-Géographie","Anglais LV1","Allemand LV2","Numérique & Sc. Info","Enseign. scientifique","EMC","Autre"];
@@ -1073,7 +1188,7 @@
       d.setDate(d.getDate() + i);
       const isoWeekday = d.getDay()===0 ? 7 : d.getDay();
       if(scheduleDaysFor(matiere, d).includes(isoWeekday)){
-        return d.toISOString().slice(0,10);
+        return toISODate(d);
       }
     }
     return null;
@@ -1102,9 +1217,19 @@
     return dt.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
   }
 
+  // Convertit un objet Date en chaîne AAAA-MM-JJ en utilisant le calendrier
+  // LOCAL (pas UTC). toISOString() convertit en UTC, ce qui décale la date
+  // d'un jour en arrière dans un fuseau en avance sur l'UTC (France : +1/+2h)
+  // — c'est cette erreur qui faisait apparaître de mauvais jours de cours.
+  function toISODate(d){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+
   function todayISO(){
-    const d = new Date();
-    return d.toISOString().slice(0,10);
+    return toISODate(new Date());
   }
 
   function daysDiff(iso){
@@ -1137,7 +1262,7 @@
     days = Math.max(1, Math.round(days*factor));
     const d = new Date(baseISO + "T00:00:00");
     d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0,10);
+    return toISODate(d);
   }
 
   // Si une évaluation approche pour cette matière, resserre la date suggérée
@@ -1155,7 +1280,7 @@
     if(suggestedISO < ev.date) return {date: suggestedISO, adjusted:false, eval:null};
     const d = new Date(ev.date + "T00:00:00");
     d.setDate(d.getDate() - 2);
-    let adjustedISO = d.toISOString().slice(0,10);
+    let adjustedISO = toISODate(d);
     if(adjustedISO < todayISO()) adjustedISO = todayISO();
     return {date: adjustedISO, adjusted:true, eval: ev};
   }
@@ -1163,9 +1288,9 @@
   // ---------- FIREBASE (Firestore) ----------
   async function apiGet(){
     try{
-      const q = query(sessionsCol, orderBy("date", "desc"));
+      const q = query(sessionsCol, where("ownerId", "==", currentUid));
       const snap = await getDocs(q);
-      sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      sessions = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>b.date.localeCompare(a.date));
     }catch(e){
       showToast("Connexion au serveur impossible");
     }
@@ -1173,7 +1298,7 @@
 
   async function apiCreate(obj){
     try{
-      await addDoc(sessionsCol, obj);
+      await addDoc(sessionsCol, {...obj, ownerId: currentUid, ownerName: currentProfileName});
       await apiGet();
       return true;
     }catch(e){
@@ -1202,7 +1327,8 @@
 
   async function apiDeleteAll(){
     try{
-      const snap = await getDocs(sessionsCol);
+      const q = query(sessionsCol, where("ownerId", "==", currentUid));
+      const snap = await getDocs(q);
       await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "sessions", d.id))));
       await apiGet();
     }catch(e){
@@ -1218,9 +1344,9 @@
   // ---------- ÉVALUATIONS (Firestore) ----------
   async function evalGet(){
     try{
-      const q = query(evaluationsCol, orderBy("date", "asc"));
+      const q = query(evaluationsCol, where("ownerId", "==", currentUid));
       const snap = await getDocs(q);
-      evaluations = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      evaluations = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>a.date.localeCompare(b.date));
     }catch(e){
       showToast("Connexion au serveur impossible");
     }
@@ -1228,7 +1354,7 @@
 
   async function evalCreate(obj){
     try{
-      await addDoc(evaluationsCol, obj);
+      await addDoc(evaluationsCol, {...obj, ownerId: currentUid, ownerName: currentProfileName});
       await evalGet();
       return true;
     }catch(e){
@@ -1568,7 +1694,7 @@
 
   function renderAccueil(){
     const now = new Date();
-    const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return d.toISOString().slice(0,10);})();
+    const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return toISODate(d);})();
     const weekSessions = doneSessions().filter(s=>s.date >= weekAgoISO && s.date <= todayISO());
     const totalMin = weekSessions.reduce((a,s)=>a+s.duree,0);
     $('#statTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
@@ -1819,7 +1945,7 @@
     $('#evalChapitreCustom').value = '';
     $('#evalNotesInput').value = '';
     const d = new Date(); d.setDate(d.getDate()+7);
-    $('#evalDateInput').value = d.toISOString().slice(0,10);
+    $('#evalDateInput').value = toISODate(d);
     $('#evalOverlay').classList.add('show');
   });
   $('#closeEvalBtn').addEventListener('click', ()=>{
@@ -1900,7 +2026,7 @@
     const days = period==='semaine' ? 6 : 29;
     const d = new Date();
     d.setDate(d.getDate() - days);
-    const fromISO = d.toISOString().slice(0,10);
+    const fromISO = toISODate(d);
     return doneSessions().filter(s=>s.date >= fromISO && s.date <= todayISO());
   }
 
@@ -1982,6 +2108,15 @@
     try{ window.print(); }catch(e){ showToast("Impression indisponible ici"); }
   });
 
+  $('#bilanEmailBtn').addEventListener('click', ()=>{
+    const text = bilanShareText();
+    const name = $('#bilanNameInput').value.trim();
+    const to = $('#bilanEmailToInput').value.trim();
+    const subject = "Bilan de révisions" + (name ? " — " + name : "");
+    const mailtoUrl = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    window.location.href = mailtoUrl;
+  });
+
   $('#bilanShareBtn').addEventListener('click', async ()=>{
     const text = bilanShareText();
     const name = $('#bilanNameInput').value.trim();
@@ -2017,7 +2152,7 @@
     const day = d.getDay();
     const diff = (day===0 ? -6 : 1-day);
     d.setDate(d.getDate() + diff);
-    return d.toISOString().slice(0,10);
+    return toISODate(d);
   }
 
   function lastNWeeksMondays(n){
@@ -2026,7 +2161,7 @@
     for(let i=n-1;i>=0;i--){
       const d = new Date(todayMonday + "T00:00:00");
       d.setDate(d.getDate() - i*7);
-      arr.push(d.toISOString().slice(0,10));
+      arr.push(toISODate(d));
     }
     return arr;
   }
@@ -2126,7 +2261,7 @@
     const data = weeks.map(w=>{
       const weekEnd = new Date(w+"T00:00:00");
       weekEnd.setDate(weekEnd.getDate()+6);
-      const weekEndISO = weekEnd.toISOString().slice(0,10);
+      const weekEndISO = toISODate(weekEnd);
       const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
       return { label: fmtWeekLabel(w), value: inWeek.reduce((a,s)=>a+s.duree,0) };
     });
@@ -2151,7 +2286,7 @@
     const data = weeks.map(w=>{
       const weekEnd = new Date(w+"T00:00:00");
       weekEnd.setDate(weekEnd.getDate()+6);
-      const weekEndISO = weekEnd.toISOString().slice(0,10);
+      const weekEndISO = toISODate(weekEnd);
       const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
       const avg = inWeek.length ? inWeek.reduce((a,s)=>a+s.difficulte,0)/inWeek.length : null;
       return { label: fmtWeekLabel(w), value: avg };
@@ -2307,16 +2442,224 @@
 
   renderTimerDisplay();
 
+  // ---------- COMPARAISON ENTRE PROFILS ----------
+  $('#openCompareBtn').addEventListener('click', async ()=>{
+    $('#compareOverlay').classList.add('show');
+    const list = $('#compareList');
+    list.innerHTML = '<div class="c-empty">Chargement...</div>';
+    try{
+      const [sessSnap, profSnap] = await Promise.all([getDocs(sessionsCol), getDocs(profilesCol)]);
+      const names = {};
+      profSnap.docs.forEach(d=>{ names[d.id] = d.data().name; });
+
+      const weekAgo = (()=>{const d=new Date(); d.setDate(d.getDate()-6); return toISODate(d);})();
+      const totals = {};
+      sessSnap.docs.forEach(d=>{
+        const s = d.data();
+        if(s.planifiee) return;
+        if(!(s.date >= weekAgo && s.date <= todayISO())) return;
+        if(!totals[s.ownerId]) totals[s.ownerId] = {temps:0, count:0};
+        totals[s.ownerId].temps += (s.duree||0);
+        totals[s.ownerId].count += 1;
+      });
+
+      const rows = Object.keys(names).map(uid=>({
+        uid,
+        name: names[uid],
+        temps: (totals[uid] && totals[uid].temps) || 0,
+        count: (totals[uid] && totals[uid].count) || 0
+      })).sort((a,b)=>b.temps-a.temps);
+
+      list.innerHTML = '';
+      if(rows.length===0){
+        list.innerHTML = '<div class="c-empty">Personne n\'a encore de profil.</div>';
+        return;
+      }
+      rows.forEach((r,i)=>{
+        const row = document.createElement('div');
+        row.className = 'c-leader-row' + (r.uid===currentUid ? ' me' : '');
+        const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
+        row.innerHTML = `
+          <span class="name">${i+1}. ${escapeHtml(r.name)}${r.uid===currentUid?' (toi)':''}</span>
+          <span class="val">${t}</span>
+        `;
+        list.appendChild(row);
+      });
+    }catch(e){
+      list.innerHTML = '<div class="c-empty">Impossible de charger le classement.</div>';
+    }
+  });
+  $('#closeCompareBtn').addEventListener('click', ()=>{
+    $('#compareOverlay').classList.remove('show');
+  });
+
+  // ---------- PROFIL & AUTHENTIFICATION ----------
+  let currentUid = null;
+  let currentProfileName = null;
+
+  async function loadOrPromptProfile(){
+    try{
+      const snap = await getDoc(doc(profilesCol, currentUid));
+      if(snap.exists()){
+        currentProfileName = snap.data().name;
+        $('#onboardingOverlay').classList.remove('show');
+        initApp();
+      } else {
+        $('#onboardingOverlay').classList.add('show');
+      }
+    }catch(e){
+      showToast("Connexion au serveur impossible");
+    }
+  }
+
+  $('#onboardingSaveBtn').addEventListener('click', async ()=>{
+    const name = $('#onboardingNameInput').value.trim();
+    if(!name){ showToast("Indique ton prénom"); return; }
+    try{
+      await setDoc(doc(profilesCol, currentUid), { name, createdAt: todayISO() });
+      currentProfileName = name;
+      $('#onboardingOverlay').classList.remove('show');
+      initApp();
+    }catch(e){
+      showToast("Échec de la création du profil");
+    }
+  });
+
+  $('#showLoginLinkBtn').addEventListener('click', ()=>{
+    $('#onboardingNewWrap').style.display = 'none';
+    $('#onboardingLoginWrap').style.display = 'block';
+  });
+  $('#showNewLinkBtn').addEventListener('click', ()=>{
+    $('#onboardingLoginWrap').style.display = 'none';
+    $('#onboardingNewWrap').style.display = 'block';
+  });
+
+  $('#loginSubmitBtn').addEventListener('click', async ()=>{
+    const email = $('#loginEmailInput').value.trim();
+    const password = $('#loginPasswordInput').value;
+    if(!email || !password){ showToast("Indique ton email et ton mot de passe"); return; }
+    try{
+      sessions = [];
+      evaluations = [];
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged prend le relais : charge le profil existant.
+    }catch(e){
+      showToast("Email ou mot de passe incorrect");
+    }
+  });
+
+  function updateProfileBadge(){
+    $('#profileBadge').textContent = '👤 ' + currentProfileName;
+  }
+
+  function updateAccountOverlay(){
+    $('#accountProfileLine').textContent = `Profil actuel : ${currentProfileName}`;
+    const isLinked = auth.currentUser && auth.currentUser.providerData.some(p=>p.providerId==='password');
+    $('#accountLinkedWrap').style.display = isLinked ? 'block' : 'none';
+    $('#accountLinkWrap').style.display = isLinked ? 'none' : 'block';
+    $('#linkEmailInput').value = '';
+    $('#linkPasswordInput').value = '';
+    checkOrphanedData();
+  }
+
+  // Données créées avant l'ajout des profils (pas de champ ownerId). On ne
+  // les attribue JAMAIS automatiquement : seul un clic explicite, ici, peut
+  // les rattacher au profil actuellement connecté.
+  async function checkOrphanedData(){
+    const wrap = $('#migrationWrap');
+    try{
+      const [sessSnap, evalSnap] = await Promise.all([getDocs(sessionsCol), getDocs(evaluationsCol)]);
+      const orphanSessions = sessSnap.docs.filter(d => !('ownerId' in d.data()));
+      const orphanEvals = evalSnap.docs.filter(d => !('ownerId' in d.data()));
+      const total = orphanSessions.length + orphanEvals.length;
+      if(total === 0){
+        wrap.style.display = 'none';
+        return;
+      }
+      wrap.style.display = 'block';
+      $('#migrationNote').innerHTML = `<b>${total} élément(s)</b> ont été créés avant la mise en place des profils et n'appartiennent à personne pour l'instant (${orphanSessions.length} séance(s), ${orphanEvals.length} évaluation(s)). Si ce sont tes données, tu peux te les attribuer ci-dessous — ne le fais que si c'est vraiment toi qui les as créées.`;
+      $('#migrationBtn').onclick = async ()=>{
+        if(!confirm(`Attribuer ces ${total} élément(s) à ton profil (${currentProfileName}) ? Ne fais ça que si ce sont bien tes données.`)) return;
+        try{
+          await Promise.all([
+            ...orphanSessions.map(d => updateDoc(doc(db,"sessions",d.id), {ownerId: currentUid, ownerName: currentProfileName})),
+            ...orphanEvals.map(d => updateDoc(doc(db,"evaluations",d.id), {ownerId: currentUid, ownerName: currentProfileName}))
+          ]);
+          showToast("Données récupérées ✓");
+          wrap.style.display = 'none';
+          await loadSessions();
+          await evalGet();
+          renderAccueil();
+        }catch(e){
+          showToast("Échec de la récupération");
+        }
+      };
+    }catch(e){
+      wrap.style.display = 'none';
+    }
+  }
+
+  $('#profileBadge').addEventListener('click', ()=>{
+    updateAccountOverlay();
+    $('#accountOverlay').classList.add('show');
+  });
+  $('#closeAccountBtn').addEventListener('click', ()=>{
+    $('#accountOverlay').classList.remove('show');
+  });
+
+  $('#linkSaveBtn').addEventListener('click', async ()=>{
+    const email = $('#linkEmailInput').value.trim();
+    const password = $('#linkPasswordInput').value;
+    if(!email || !password){ showToast("Indique un email et un mot de passe"); return; }
+    if(password.length < 8){ showToast("Mot de passe trop court (8 caractères minimum)"); return; }
+    try{
+      const cred = EmailAuthProvider.credential(email, password);
+      await linkWithCredential(auth.currentUser, cred);
+      showToast("Profil sauvegardé ✓");
+      updateAccountOverlay();
+    }catch(e){
+      if(e.code === 'auth/email-already-in-use'){
+        showToast("Cet email est déjà utilisé par un autre profil");
+      } else {
+        showToast("Échec de la sauvegarde");
+      }
+    }
+  });
+
+  $('#switchProfileBtn').addEventListener('click', async ()=>{
+    if(!confirm("Changer de profil ? Tu ne verras plus tes données actuelles sur cet appareil (elles restent enregistrées si tu les as sauvegardées avec un email).")) return;
+    try{
+      $('#accountOverlay').classList.remove('show');
+      await signOut(auth);
+      sessions = [];
+      evaluations = [];
+      $('#onboardingNameInput').value = '';
+      $('#onboardingLoginWrap').style.display = 'none';
+      $('#onboardingNewWrap').style.display = 'block';
+      await signInAnonymously(auth);
+    }catch(e){
+      showToast("Échec du changement de profil");
+    }
+  });
+
+  onAuthStateChanged(auth, (user)=>{
+    if(user){
+      currentUid = user.uid;
+      loadOrPromptProfile();
+    }
+  });
+  signInAnonymously(auth).catch(()=>showToast("Connexion impossible"));
+
   // ---------- INIT ----------
-  async function init(){
+  async function initApp(){
     $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     $('#dateInput').value = todayISO();
+    updateProfileBadge();
     await loadSessions();
     await evalGet();
     updateRevoirSub();
     renderAccueil();
   }
-  init();
 })();
 </script>
 </body>
