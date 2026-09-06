@@ -4,9 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Révisions">
 <title>Carnet de révisions</title>
+<link rel="icon" href="data:,">
 <style>
   body{margin:0;padding:0;background:#FBF7EE;}
   @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
@@ -362,7 +364,7 @@
     color:var(--ink-faint);
     padding:4px 1px;
   }
-  .c-nav-btn .ic{font-size:17px;line-height:1;}
+  .c-nav-btn .ic{font-size:15px;line-height:1;}
   .c-nav-btn .lbl{font-size:9px;font-weight:600;white-space:nowrap;}
   .c-nav-btn.active{color:var(--margin);}
   .c-nav-btn{position:relative;}
@@ -499,7 +501,7 @@
   }
 
   /* BILAN OVERLAY */
-  #bilanOverlay, #evalOverlay, #onboardingOverlay, #compareOverlay, #accountOverlay{
+  #bilanOverlay, #evalOverlay, #onboardingOverlay, #compareOverlay, #accountOverlay, #statsPrefsOverlay{
     display:none;
     position:absolute;
     inset:0;
@@ -508,7 +510,7 @@
     overflow-y:auto;
     border-radius:18px;
   }
-  #bilanOverlay.show, #evalOverlay.show, #onboardingOverlay.show, #compareOverlay.show, #accountOverlay.show{display:block;}
+  #bilanOverlay.show, #evalOverlay.show, #onboardingOverlay.show, #compareOverlay.show, #accountOverlay.show, #statsPrefsOverlay.show{display:block;}
   #onboardingOverlay{z-index:30;display:block;}
   .c-profile-badge{
     position:absolute;
@@ -535,6 +537,78 @@
   .c-leader-row.me{border-left:4px solid var(--margin);}
   .c-leader-row .name{font-weight:700;font-size:14px;}
   .c-leader-row .val{font-family:'Kalam',cursive;font-weight:700;font-size:17px;color:var(--g);}
+  .c-activity-row{
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    border-left:4px solid var(--b);
+    border-radius:3px;
+    padding:9px 12px;
+    margin-bottom:8px;
+  }
+  .c-activity-row .top-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .c-activity-row .who{font-weight:700;font-size:13px;}
+  .c-activity-row .when{font-size:10.5px;color:var(--ink-faint);white-space:nowrap;}
+  .c-activity-row .what{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+  /* CHAT */
+  .c-chat-messages{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding-bottom:8px;
+  }
+  .c-chat-bubble{
+    max-width:78%;
+    padding:8px 12px;
+    border-radius:14px;
+    background:var(--card-bg);
+    border:1px solid var(--paper-line);
+    align-self:flex-start;
+  }
+  .c-chat-bubble.me{
+    align-self:flex-end;
+    background:#F2ECDC;
+    border-color:#E4D8B8;
+  }
+  .c-chat-bubble .who{
+    font-size:10.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    margin-bottom:2px;
+  }
+  .c-chat-bubble .txt{font-size:13.5px;color:var(--ink);white-space:pre-wrap;word-break:break-word;}
+  .c-chat-bubble .ts{font-size:9.5px;color:var(--ink-faint);margin-top:3px;text-align:right;}
+  .c-chat-inputbar{
+    position:absolute;
+    bottom:56px;
+    left:0; right:0;
+    z-index:4;
+    background:var(--card-bg);
+    border-top:1.5px solid var(--paper-line);
+    display:flex;
+    gap:8px;
+    padding:9px 12px;
+  }
+  .c-chat-inputbar input{
+    flex:1;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:9px 12px;
+    border:1.5px solid var(--paper-line);
+    border-radius:20px;
+    background:var(--paper);
+  }
+  .c-chat-inputbar button{
+    width:38px;height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--ink);
+    color:var(--paper);
+    font-size:15px;
+    cursor:pointer;
+    flex:none;
+  }
+  #view-chat{padding-bottom:56px;}
   select{
     width:100%;
     font-family:'Inter',sans-serif;
@@ -992,7 +1066,10 @@
 
     <!-- STATISTIQUES -->
     <div class="c-view" id="view-statistiques">
-      <div class="c-sec-label">Statistiques</div>
+      <div class="c-sec-label" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Statistiques</span>
+        <button id="openStatsPrefsBtn" style="background:none;border:1px solid var(--paper-line);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--ink-soft);cursor:pointer;">⚙️ Personnaliser</button>
+      </div>
       <div class="c-stats">
         <div class="c-stat">
           <span class="num" id="statTotalTemps">0h</span>
@@ -1008,22 +1085,62 @@
         </div>
       </div>
 
-      <div class="c-sec-label">Répartition par matière</div>
-      <div id="statBars"></div>
+      <div id="statSectionRepartition">
+        <div class="c-sec-label">Répartition par matière</div>
+        <div id="statBars"></div>
+      </div>
 
-      <div class="c-sec-label">Temps de révision par semaine</div>
-      <div class="c-chart-box" id="chartWeekly"></div>
+      <div id="statSectionWeekly">
+        <div class="c-sec-label">Temps de révision par semaine</div>
+        <div class="c-chart-box" id="chartWeekly"></div>
+      </div>
 
-      <div class="c-sec-label">Jours de révision habituels</div>
-      <div class="c-chart-box" id="chartWeekday"></div>
+      <div id="statSectionWeekday">
+        <div class="c-sec-label">Jours de révision habituels</div>
+        <div class="c-chart-box" id="chartWeekday"></div>
+      </div>
 
-      <div class="c-sec-label">Évolution de la difficulté ressentie</div>
-      <div class="c-chart-box" id="chartDifficulty"></div>
+      <div id="statSectionDifficulty">
+        <div class="c-sec-label">Évolution de la difficulté ressentie</div>
+        <div class="c-chart-box" id="chartDifficulty"></div>
+      </div>
 
-      <div class="c-note-box" id="statScheduleNote"></div>
+      <div id="statSectionNote">
+        <div class="c-note-box" id="statScheduleNote"></div>
+      </div>
 
       <button class="c-export-btn" id="openBilanBtn">📄 Générer un bilan à présenter</button>
       <button class="c-export-btn" id="openCompareBtn" style="margin-top:10px;">👥 Comparer avec mes amis</button>
+    </div>
+
+    <div id="statsPrefsOverlay">
+      <div class="bilan-topbar">
+        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Personnaliser mes statistiques</span>
+        <button class="close" id="closeStatsPrefsBtn">✕</button>
+      </div>
+      <div class="bilan-body">
+        <div class="bilan-sub" style="margin-bottom:16px;">Choisis ce que tu veux voir sur cet onglet. Ce réglage est propre à cet appareil.</div>
+        <div class="c-toggle-row" style="margin-bottom:9px;">
+          <div class="txt">Répartition par matière</div>
+          <button class="c-switch on" data-pref="repartition"><span class="knob"></span></button>
+        </div>
+        <div class="c-toggle-row" style="margin-bottom:9px;">
+          <div class="txt">Temps par semaine</div>
+          <button class="c-switch on" data-pref="weekly"><span class="knob"></span></button>
+        </div>
+        <div class="c-toggle-row" style="margin-bottom:9px;">
+          <div class="txt">Jours de révision habituels</div>
+          <button class="c-switch on" data-pref="weekday"><span class="knob"></span></button>
+        </div>
+        <div class="c-toggle-row" style="margin-bottom:9px;">
+          <div class="txt">Évolution de la difficulté</div>
+          <button class="c-switch on" data-pref="difficulty"><span class="knob"></span></button>
+        </div>
+        <div class="c-toggle-row" style="margin-bottom:9px;">
+          <div class="txt">Note sur le programme personnalisé</div>
+          <button class="c-switch on" data-pref="note"><span class="knob"></span></button>
+        </div>
+      </div>
     </div>
 
     <div id="compareOverlay">
@@ -1034,10 +1151,24 @@
       <div class="bilan-body">
         <div class="bilan-sub">Temps de révision cumulé sur les 7 derniers jours.</div>
         <div id="compareList" style="margin-top:14px;"></div>
+
+        <div class="c-sec-label">📋 Ce que tout le monde a révisé</div>
+        <div id="friendActivityList"></div>
       </div>
     </div>
 
+    <!-- CHAT -->
+    <div class="c-view" id="view-chat">
+      <div class="c-sec-label">💬 Chat entre amis</div>
+      <div class="c-note-box" style="margin-bottom:12px;">Salon commun visible par tous les profils de l'appli — pas de messages privés.</div>
+      <div id="chatMessages" class="c-chat-messages"></div>
+    </div>
 
+  </div>
+
+  <div class="c-chat-inputbar" id="chatInputBar" style="display:none;">
+    <input type="text" id="chatInput" placeholder="Écrire un message...">
+    <button id="chatSendBtn">➤</button>
   </div>
 
   <div id="bilanOverlay">
@@ -1084,6 +1215,7 @@
     <button class="c-nav-btn" data-view="historique"><span class="ic">📚</span><span class="lbl">Historique</span></button>
     <button class="c-nav-btn" data-view="planning"><span class="ic">🔁</span><span class="lbl">Planning</span></button>
     <button class="c-nav-btn" data-view="statistiques"><span class="ic">📊</span><span class="lbl">Stats</span></button>
+    <button class="c-nav-btn" data-view="chat"><span class="ic">💬</span><span class="lbl">Chat</span></button>
   </div>
 </div>
 
@@ -1104,7 +1236,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
     getFirestore, collection, addDoc, getDocs, deleteDoc,
-    updateDoc, doc, query, orderBy, where, setDoc, getDoc
+    updateDoc, doc, query, orderBy, where, setDoc, getDoc,
+    onSnapshot, serverTimestamp, limit
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, signInAnonymously, onAuthStateChanged, signOut,
@@ -1116,6 +1249,7 @@
   const auth = getAuth(fbApp);
   const sessionsCol = collection(db, "sessions");
   const evaluationsCol = collection(db, "evaluations");
+  const messagesCol = collection(db, "messages");
   const profilesCol = collection(db, "profiles");
 
 (function(){
@@ -1391,8 +1525,10 @@
     if(name==='accueil') renderAccueil();
     if(name==='historique') renderHistorique();
     if(name==='planning'){ renderPlanning(); renderEvaluations(); }
-    if(name==='statistiques') renderStatistiques();
+    if(name==='statistiques'){ applyStatsPrefs(); renderStatistiques(); }
     if(name==='ajouter') resetForm();
+    $('#chatInputBar').style.display = (name==='chat') ? 'flex' : 'none';
+    if(name==='chat') subscribeChat(); else unsubscribeChat();
   }
   $$('.c-nav-btn').forEach(b=>b.addEventListener('click', ()=>switchView(b.dataset.view)));
 
@@ -2299,6 +2435,52 @@
   }
 
   // ---------- STATISTIQUES ----------
+  // ---------- PERSONNALISATION DES STATISTIQUES ----------
+  // Préférence purement d'affichage, propre à cet appareil — pas de données
+  // personnelles, donc localStorage convient très bien ici.
+  const STATS_PREFS_KEY = 'carnet-stats-prefs-v1';
+  const STATS_PREFS_DEFAULT = { repartition:true, weekly:true, weekday:true, difficulty:true, note:true };
+
+  function loadStatsPrefs(){
+    try{
+      const raw = localStorage.getItem(STATS_PREFS_KEY);
+      return raw ? {...STATS_PREFS_DEFAULT, ...JSON.parse(raw)} : {...STATS_PREFS_DEFAULT};
+    }catch(e){
+      return {...STATS_PREFS_DEFAULT};
+    }
+  }
+  function saveStatsPrefs(prefs){
+    try{ localStorage.setItem(STATS_PREFS_KEY, JSON.stringify(prefs)); }catch(e){}
+  }
+
+  let statsPrefs = loadStatsPrefs();
+
+  function applyStatsPrefs(){
+    $('#statSectionRepartition').style.display = statsPrefs.repartition ? 'block' : 'none';
+    $('#statSectionWeekly').style.display = statsPrefs.weekly ? 'block' : 'none';
+    $('#statSectionWeekday').style.display = statsPrefs.weekday ? 'block' : 'none';
+    $('#statSectionDifficulty').style.display = statsPrefs.difficulty ? 'block' : 'none';
+    $('#statSectionNote').style.display = statsPrefs.note ? 'block' : 'none';
+  }
+
+  $$('#statsPrefsOverlay .c-switch').forEach(btn=>{
+    const key = btn.dataset.pref;
+    btn.classList.toggle('on', !!statsPrefs[key]);
+    btn.addEventListener('click', ()=>{
+      statsPrefs[key] = !statsPrefs[key];
+      btn.classList.toggle('on', statsPrefs[key]);
+      saveStatsPrefs(statsPrefs);
+      applyStatsPrefs();
+    });
+  });
+
+  $('#openStatsPrefsBtn').addEventListener('click', ()=>{
+    $('#statsPrefsOverlay').classList.add('show');
+  });
+  $('#closeStatsPrefsBtn').addEventListener('click', ()=>{
+    $('#statsPrefsOverlay').classList.remove('show');
+  });
+
   function renderStatistiques(){
     const totalMin = doneSessions().reduce((a,s)=>a+s.duree,0);
     $('#statTotalTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
@@ -2446,6 +2628,72 @@
 
   renderTimerDisplay();
 
+  // ---------- CHAT ----------
+  let chatUnsubscribe = null;
+
+  function subscribeChat(){
+    if(chatUnsubscribe) return; // déjà abonné
+    const q = query(messagesCol, orderBy("createdAt", "asc"), limit(200));
+    chatUnsubscribe = onSnapshot(q, (snap)=>{
+      const messages = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      renderChat(messages);
+    }, ()=>{
+      $('#chatMessages').innerHTML = '<div class="c-empty">Chat indisponible pour le moment.</div>';
+    });
+  }
+
+  function unsubscribeChat(){
+    if(chatUnsubscribe){ chatUnsubscribe(); chatUnsubscribe = null; }
+  }
+
+  function renderChat(messages){
+    const wrap = $('#chatMessages');
+    const wasNearBottom = (wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight) < 80;
+    wrap.innerHTML = '';
+    if(messages.length===0){
+      wrap.innerHTML = '<div class="c-empty">Aucun message pour l\'instant. Lance la discussion !</div>';
+      return;
+    }
+    messages.forEach(m=>{
+      const bubble = document.createElement('div');
+      const isMe = m.senderId === currentUid;
+      bubble.className = 'c-chat-bubble' + (isMe ? ' me' : '');
+      const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
+      const tsLabel = ts ? ts.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
+      bubble.innerHTML = `
+        ${isMe ? '' : `<div class="who">${escapeHtml(m.senderName || 'Quelqu\'un')}</div>`}
+        <div class="txt">${escapeHtml(m.text)}</div>
+        ${tsLabel ? `<div class="ts">${tsLabel}</div>` : ''}
+      `;
+      wrap.appendChild(bubble);
+    });
+    if(wasNearBottom || messages[messages.length-1].senderId === currentUid){
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+  }
+
+  async function sendChatMessage(){
+    const input = $('#chatInput');
+    const text = input.value.trim();
+    if(!text) return;
+    input.value = '';
+    try{
+      await addDoc(messagesCol, {
+        senderId: currentUid,
+        senderName: currentProfileName,
+        text: text.slice(0, 500),
+        createdAt: serverTimestamp()
+      });
+    }catch(e){
+      showToast("Message non envoyé");
+      input.value = text;
+    }
+  }
+  $('#chatSendBtn').addEventListener('click', sendChatMessage);
+  $('#chatInput').addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
+  });
+
   // ---------- COMPARAISON ENTRE PROFILS ----------
   $('#openCompareBtn').addEventListener('click', async ()=>{
     $('#compareOverlay').classList.add('show');
@@ -2489,6 +2737,34 @@
         `;
         list.appendChild(row);
       });
+
+      // Fil d'activité : ce que tout le monde a révisé récemment.
+      const activityWrap = $('#friendActivityList');
+      const allDone = sessSnap.docs
+        .map(d=>({id:d.id, ...d.data()}))
+        .filter(s=>!s.planifiee)
+        .sort((a,b)=> b.date.localeCompare(a.date))
+        .slice(0, 20);
+      activityWrap.innerHTML = '';
+      if(allDone.length===0){
+        activityWrap.innerHTML = '<div class="c-empty">Personne n\'a encore enregistré de séance.</div>';
+      } else {
+        allDone.forEach(s=>{
+          const name = names[s.ownerId] || s.ownerName || 'Quelqu\'un';
+          const row = document.createElement('div');
+          row.className = 'c-activity-row';
+          row.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
+          const t = s.duree>=60 ? (Math.round(s.duree/6)/10)+'h' : s.duree+'min';
+          row.innerHTML = `
+            <div class="top-row">
+              <span class="who">${escapeHtml(name)}${s.ownerId===currentUid?' (toi)':''}</span>
+              <span class="when">${fmtDate(s.date)}</span>
+            </div>
+            <div class="what">${escapeHtml(s.matiere)}${s.sujet ? ' — '+escapeHtml(s.sujet) : ''} · ${t}${s.difficulte ? ' · '+diffDots(s.difficulte) : ''}</div>
+          `;
+          activityWrap.appendChild(row);
+        });
+      }
     }catch(e){
       list.innerHTML = '<div class="c-empty">Impossible de charger le classement.</div>';
     }
