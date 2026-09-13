@@ -376,6 +376,23 @@
     animation:pulse 1.4s infinite;
   }
   .c-nav-btn.has-run .run-dot{display:block;}
+  .chat-badge{
+    position:absolute;
+    top:0; right:calc(50% - 20px);
+    background:var(--margin);
+    color:white;
+    font-size:9px;
+    font-weight:700;
+    min-width:15px;
+    height:15px;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 3px;
+    line-height:1;
+    cursor:help;
+  }
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
 
   /* MINUTEUR */
@@ -607,6 +624,11 @@
     font-size:15px;
     cursor:pointer;
     flex:none;
+  }
+  .c-chat-inputbar #chatAttachBtn{
+    background:var(--card-bg);
+    border:1.5px solid var(--paper-line);
+    color:var(--ink-soft);
   }
   #view-chat{padding-bottom:56px;}
   select{
@@ -849,6 +871,12 @@
         <div class="c-sec-label">Anciennes données</div>
         <div class="c-note-box" id="migrationNote"></div>
         <button class="c-export-btn" id="migrationBtn" style="border-color:var(--g);color:#3F6B4C;margin-top:10px;">Récupérer ces données sur mon profil</button>
+      </div>
+
+      <div id="adminPanelWrap" style="display:none;">
+        <div class="c-sec-label">🛡️ Panneau admin</div>
+        <div class="c-note-box">Sauvegarde manuelle : télécharge un instantané de toutes les données (séances, évaluations, profils, messages) au format JSON.</div>
+        <button class="c-export-btn" id="exportAllBtn" style="margin-top:10px;">💾 Exporter toutes les données</button>
       </div>
 
       <div class="c-sec-label">Autre appareil, autre personne</div>
@@ -1167,6 +1195,8 @@
   </div>
 
   <div class="c-chat-inputbar" id="chatInputBar" style="display:none;">
+    <button id="chatAttachBtn" type="button">📎</button>
+    <input type="file" id="chatFileInput" style="display:none;">
     <input type="text" id="chatInput" placeholder="Écrire un message...">
     <button id="chatSendBtn">➤</button>
   </div>
@@ -1243,6 +1273,9 @@
     getAuth, signInAnonymously, onAuthStateChanged, signOut,
     EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+  import {
+    getStorage, ref, uploadBytes, getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
 
   const fbApp = initializeApp(firebaseConfig);
   const db = getFirestore(fbApp);
@@ -1250,6 +1283,9 @@
   const sessionsCol = collection(db, "sessions");
   const evaluationsCol = collection(db, "evaluations");
   const messagesCol = collection(db, "messages");
+  const storage = getStorage(fbApp);
+  const ADMIN_EMAIL = 'bouvet.clement@gmail.com';
+  let isAdmin = false;
   const profilesCol = collection(db, "profiles");
 
 (function(){
@@ -1528,7 +1564,7 @@
     if(name==='statistiques'){ applyStatsPrefs(); renderStatistiques(); }
     if(name==='ajouter') resetForm();
     $('#chatInputBar').style.display = (name==='chat') ? 'flex' : 'none';
-    if(name==='chat') subscribeChat(); else unsubscribeChat();
+    if(name==='chat'){ renderChat(latestMessages); markChatRead(); }
   }
   $$('.c-nav-btn').forEach(b=>b.addEventListener('click', ()=>switchView(b.dataset.view)));
 
@@ -2539,10 +2575,57 @@
   }
 
   // ---------- MINUTEUR ----------
-  let timerSeconds = 0;
+  // Le temps écoulé est calculé à partir d'horodatages réels (Date.now()),
+  // pas d'un compteur incrémenté à chaque tick : setInterval est mis en
+  // pause par le navigateur quand l'onglet est en arrière-plan ou l'écran
+  // verrouillé, ce qui faussait le minuteur. L'état est aussi sauvegardé en
+  // local pour survivre à une fermeture complète de l'app pendant le minutage.
+  const TIMER_STATE_KEY = 'carnet-timer-state-v1';
+  let timerAccumulatedMs = 0;
+  let timerStartTs = null;
   let timerRunning = false;
   let timerInterval = null;
   let timerMatiere = null;
+
+  function saveTimerState(){
+    try{
+      localStorage.setItem(TIMER_STATE_KEY, JSON.stringify({
+        startTs: timerStartTs,
+        accumulatedMs: timerAccumulatedMs,
+        running: timerRunning,
+        matiere: timerMatiere,
+        sujet: $('#timerSujetInput').value
+      }));
+    }catch(e){}
+  }
+
+  function clearTimerState(){
+    try{ localStorage.removeItem(TIMER_STATE_KEY); }catch(e){}
+  }
+
+  function loadTimerState(){
+    try{
+      const raw = localStorage.getItem(TIMER_STATE_KEY);
+      if(!raw) return;
+      const st = JSON.parse(raw);
+      timerAccumulatedMs = st.accumulatedMs || 0;
+      timerStartTs = st.startTs || null;
+      timerRunning = !!st.running;
+      timerMatiere = st.matiere || null;
+      if(st.sujet) $('#timerSujetInput').value = st.sujet;
+      if(timerMatiere){
+        $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===timerMatiere));
+      }
+      if(timerRunning && timerStartTs){
+        timerInterval = setInterval(renderTimerDisplay, 1000);
+      }
+    }catch(e){}
+  }
+
+  function getElapsedSeconds(){
+    const ms = timerAccumulatedMs + (timerRunning && timerStartTs ? (Date.now() - timerStartTs) : 0);
+    return Math.floor(ms/1000);
+  }
 
   function buildTimerMatiereChips(){
     const wrap = $('#timerMatiereChips');
@@ -2556,11 +2639,13 @@
         timerMatiere = m;
         $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
         chip.classList.add('sel');
+        saveTimerState();
       });
       wrap.appendChild(chip);
     });
   }
   buildTimerMatiereChips();
+  $('#timerSujetInput').addEventListener('input', saveTimerState);
 
   function fmtTimer(sec){
     const h = Math.floor(sec/3600);
@@ -2571,39 +2656,51 @@
   }
 
   function renderTimerDisplay(){
-    $('#timerDisplay').textContent = fmtTimer(timerSeconds);
+    const secs = getElapsedSeconds();
+    $('#timerDisplay').textContent = fmtTimer(secs);
     $('#timerDisplay').classList.toggle('running', timerRunning);
-    $('#timerFinish').disabled = timerSeconds < 60;
-    $('#timerSub').textContent = timerRunning ? "En cours..." : (timerSeconds>0 ? "En pause" : "Prêt à démarrer");
+    $('#timerFinish').disabled = secs < 60;
+    $('#timerSub').textContent = timerRunning ? "En cours..." : (secs>0 ? "En pause" : "Prêt à démarrer");
     $('#timerStart').textContent = timerRunning ? '⏸' : '▶';
     const navBtn = document.querySelector('.c-nav-btn[data-view="minuteur"]');
-    navBtn.classList.toggle('has-run', timerRunning);
+    if(navBtn) navBtn.classList.toggle('has-run', timerRunning);
   }
+
+  // Recalcule immédiatement l'affichage dès que l'onglet redevient visible,
+  // sans attendre le prochain tick (qui peut avoir été retardé de plusieurs
+  // minutes par le navigateur).
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden) renderTimerDisplay();
+  });
 
   $('#timerStart').addEventListener('click', ()=>{
     timerRunning = !timerRunning;
     if(timerRunning){
-      timerInterval = setInterval(()=>{
-        timerSeconds++;
-        renderTimerDisplay();
-      }, 1000);
+      timerStartTs = Date.now();
+      timerInterval = setInterval(renderTimerDisplay, 1000);
     } else {
+      timerAccumulatedMs += Date.now() - timerStartTs;
+      timerStartTs = null;
       clearInterval(timerInterval);
     }
+    saveTimerState();
     renderTimerDisplay();
   });
 
   $('#timerReset').addEventListener('click', ()=>{
     timerRunning = false;
     clearInterval(timerInterval);
-    timerSeconds = 0;
+    timerAccumulatedMs = 0;
+    timerStartTs = null;
+    clearTimerState();
     renderTimerDisplay();
   });
 
   $('#timerFinish').addEventListener('click', ()=>{
+    const secs = getElapsedSeconds();
     timerRunning = false;
     clearInterval(timerInterval);
-    const minutes = Math.max(1, Math.round(timerSeconds/60));
+    const minutes = Math.max(1, Math.round(secs/60));
 
     switchView('ajouter');
     if(timerMatiere){
@@ -2618,32 +2715,93 @@
     $('#dureeInput').value = minutes;
     $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', parseInt(b.dataset.v,10)===minutes));
 
-    timerSeconds = 0;
+    timerAccumulatedMs = 0;
+    timerStartTs = null;
     timerMatiere = null;
+    clearTimerState();
     $('#timerSujetInput').value = '';
     $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
     renderTimerDisplay();
     showToast("Durée transférée, complète et enregistre ta séance");
   });
 
+  loadTimerState();
   renderTimerDisplay();
 
   // ---------- CHAT ----------
-  let chatUnsubscribe = null;
+  let chatGlobalUnsubscribe = null;
+  let latestMessages = [];
+  let lastReadChatTs = 0;
 
-  function subscribeChat(){
-    if(chatUnsubscribe) return; // déjà abonné
-    const q = query(messagesCol, orderBy("createdAt", "asc"), limit(200));
-    chatUnsubscribe = onSnapshot(q, (snap)=>{
-      const messages = snap.docs.map(d=>({id:d.id, ...d.data()}));
-      renderChat(messages);
+  function loadLastReadTs(){
+    try{ return parseInt(localStorage.getItem('carnet-chat-lastread-'+currentUid) || '0', 10); }
+    catch(e){ return 0; }
+  }
+  function saveLastReadTs(ts){
+    try{ localStorage.setItem('carnet-chat-lastread-'+currentUid, String(ts)); }catch(e){}
+  }
+
+  function isChatViewActive(){
+    const btn = document.querySelector('.c-nav-btn[data-view="chat"]');
+    return btn && btn.classList.contains('active');
+  }
+
+  function startGlobalChatListener(){
+    if(chatGlobalUnsubscribe) return;
+    lastReadChatTs = loadLastReadTs();
+    const q = query(messagesCol, orderBy("createdAt", "desc"), limit(200));
+    chatGlobalUnsubscribe = onSnapshot(q, (snap)=>{
+      const msgs = snap.docs.map(d=>({id:d.id, ...d.data()})).reverse();
+      const isFirstLoad = latestMessages.length === 0;
+      const previousLastId = latestMessages.length ? latestMessages[latestMessages.length-1].id : null;
+      latestMessages = msgs;
+
+      if(isChatViewActive()){
+        renderChat(msgs);
+        markChatRead();
+      } else {
+        updateChatBadge();
+        // Notification in-app (pas une notif système) si un nouveau message d'un autre arrive
+        if(!isFirstLoad && msgs.length){
+          const last = msgs[msgs.length-1];
+          if(last.id !== previousLastId && last.senderId !== currentUid){
+            showToast(`💬 ${last.senderName||'Quelqu\'un'} : ${last.text ? last.text.slice(0,40) : '📎 fichier'}`);
+          }
+        }
+      }
     }, ()=>{
-      $('#chatMessages').innerHTML = '<div class="c-empty">Chat indisponible pour le moment.</div>';
+      if(isChatViewActive()) $('#chatMessages').innerHTML = '<div class="c-empty">Chat indisponible pour le moment.</div>';
     });
   }
 
-  function unsubscribeChat(){
-    if(chatUnsubscribe){ chatUnsubscribe(); chatUnsubscribe = null; }
+  function updateChatBadge(){
+    const navBtn = document.querySelector('.c-nav-btn[data-view="chat"]');
+    if(!navBtn) return;
+    let badge = navBtn.querySelector('.chat-badge');
+    const unread = latestMessages.filter(m=>{
+      const ts = m.createdAt && m.createdAt.toMillis ? m.createdAt.toMillis() : 0;
+      return m.senderId !== currentUid && ts > lastReadChatTs;
+    }).length;
+    if(unread > 0){
+      if(!badge){
+        badge = document.createElement('span');
+        badge.className = 'chat-badge';
+        navBtn.appendChild(badge);
+      }
+      badge.textContent = unread > 9 ? '9+' : String(unread);
+      badge.title = unread + ' message(s) non lu(s)';
+    } else if(badge){
+      badge.remove();
+    }
+  }
+
+  function markChatRead(){
+    if(latestMessages.length===0) return;
+    const last = latestMessages[latestMessages.length-1];
+    const ts = last.createdAt && last.createdAt.toMillis ? last.createdAt.toMillis() : Date.now();
+    lastReadChatTs = ts;
+    saveLastReadTs(ts);
+    updateChatBadge();
   }
 
   function renderChat(messages){
@@ -2660,9 +2818,18 @@
       bubble.className = 'c-chat-bubble' + (isMe ? ' me' : '');
       const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
       const tsLabel = ts ? ts.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
+      let fileHtml = '';
+      if(m.fileURL){
+        if(m.fileType && m.fileType.startsWith('image/')){
+          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener"><img src="${m.fileURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
+        } else {
+          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
+        }
+      }
       bubble.innerHTML = `
         ${isMe ? '' : `<div class="who">${escapeHtml(m.senderName || 'Quelqu\'un')}</div>`}
-        <div class="txt">${escapeHtml(m.text)}</div>
+        ${m.text ? `<div class="txt">${escapeHtml(m.text)}</div>` : ''}
+        ${fileHtml}
         ${tsLabel ? `<div class="ts">${tsLabel}</div>` : ''}
       `;
       wrap.appendChild(bubble);
@@ -2692,6 +2859,33 @@
   $('#chatSendBtn').addEventListener('click', sendChatMessage);
   $('#chatInput').addEventListener('keydown', (e)=>{
     if(e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
+  });
+
+  $('#chatAttachBtn').addEventListener('click', ()=> $('#chatFileInput').click());
+  $('#chatFileInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 10 * 1024 * 1024){ showToast("Fichier trop volumineux (10 Mo max)"); e.target.value=''; return; }
+    showToast("Envoi du fichier...");
+    try{
+      const path = `chat-uploads/${currentUid}/${Date.now()}-${file.name}`;
+      const fileRef = ref(storage, path);
+      await uploadBytes(fileRef, file);
+      const url = await getDownloadURL(fileRef);
+      await addDoc(messagesCol, {
+        senderId: currentUid,
+        senderName: currentProfileName,
+        text: '',
+        fileURL: url,
+        fileName: file.name,
+        fileType: file.type || '',
+        createdAt: serverTimestamp()
+      });
+      showToast("Fichier envoyé ✓");
+    }catch(e){
+      showToast("Échec de l'envoi (Firebase Storage est-il activé ?)");
+    }
+    e.target.value = '';
   });
 
   // ---------- COMPARAISON ENTRE PROFILS ----------
@@ -2822,6 +3016,9 @@
     try{
       sessions = [];
       evaluations = [];
+      if(chatGlobalUnsubscribe){ chatGlobalUnsubscribe(); chatGlobalUnsubscribe = null; }
+      latestMessages = [];
+      isAdmin = false;
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged prend le relais : charge le profil existant.
     }catch(e){
@@ -2840,8 +3037,41 @@
     $('#accountLinkWrap').style.display = isLinked ? 'none' : 'block';
     $('#linkEmailInput').value = '';
     $('#linkPasswordInput').value = '';
+    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
+    $('#adminPanelWrap').style.display = isAdmin ? 'block' : 'none';
     checkOrphanedData();
   }
+
+  $('#exportAllBtn').addEventListener('click', async ()=>{
+    showToast("Préparation de la sauvegarde...");
+    try{
+      const [sessSnap, evalSnap, profSnap, msgSnap] = await Promise.all([
+        getDocs(sessionsCol), getDocs(evaluationsCol), getDocs(profilesCol), getDocs(messagesCol)
+      ]);
+      const data = {
+        exportedAt: new Date().toISOString(),
+        sessions: sessSnap.docs.map(d=>({id:d.id, ...d.data()})),
+        evaluations: evalSnap.docs.map(d=>({id:d.id, ...d.data()})),
+        profiles: profSnap.docs.map(d=>({id:d.id, ...d.data()})),
+        messages: msgSnap.docs.map(d=>{
+          const m = d.data();
+          return {id:d.id, ...m, createdAt: (m.createdAt && m.createdAt.toDate) ? m.createdAt.toDate().toISOString() : null};
+        })
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sauvegarde-carnet-${todayISO()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("Sauvegarde téléchargée ✓");
+    }catch(e){
+      showToast("Échec de la sauvegarde");
+    }
+  });
 
   // Données créées avant l'ajout des profils (pas de champ ownerId). On ne
   // les attribue JAMAIS automatiquement : seul un clic explicite, ici, peut
@@ -2914,6 +3144,9 @@
       await signOut(auth);
       sessions = [];
       evaluations = [];
+      if(chatGlobalUnsubscribe){ chatGlobalUnsubscribe(); chatGlobalUnsubscribe = null; }
+      latestMessages = [];
+      isAdmin = false;
       $('#onboardingNameInput').value = '';
       $('#onboardingLoginWrap').style.display = 'none';
       $('#onboardingNewWrap').style.display = 'block';
@@ -2938,10 +3171,12 @@
     $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     $('#dateInput').value = todayISO();
     updateProfileBadge();
+    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
     await loadSessions();
     await evalGet();
     updateRevoirSub();
     renderAccueil();
+    startGlobalChatListener();
   }
 })();
 </script>
