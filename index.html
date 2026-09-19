@@ -2,3183 +2,1106 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Révisions">
-<title>Carnet de révisions</title>
-<link rel="icon" href="data:,">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comptes de la famille</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
-  body{margin:0;padding:0;background:#FBF7EE;}
-  @import url('https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
-
   :root{
-    --paper: #FBF7EE;
-    --paper-line: #E7DCC4;
-    --margin: #C4574A;
-    --ink: #2B2B2E;
-    --ink-soft: #706A5C;
-    --ink-faint: #A39C89;
-    --y: #EFC94C;
-    --g: #7FA98A;
-    --b: #6F97BE;
-    --p: #C97C93;
-    --o: #D98A4E;
-    --card-bg: #FFFDF8;
-    --danger: #B4483C;
+    --bg:#F6F3EA; --surface:#FFFFFF; --surface-2:#EFEADB; --border:#DAD3BE;
+    --ink:#232720; --muted:#6E6A5C;
+    --green:#2F5D50;
+    --terracotta:#B5533C; --gold:#B4881E; --blue:#3A6EA5;
+    --font-display:"Lora", Georgia, serif;
+    --font-body:"Inter", -apple-system, "Segoe UI", sans-serif;
+    --font-mono:"IBM Plex Mono", "Courier New", monospace;
   }
+  :root:not([data-theme="light"]){ color-scheme: light dark; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#181A17; --surface:#212420; --surface-2:#2A2D27; --border:#3B3E36;
+      --ink:#EDEAE0; --muted:#9B968A; --green:#6FA893; --terracotta:#E08268; --gold:#E4B23C; --blue:#7AA9D6;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#181A17; --surface:#212420; --surface-2:#2A2D27; --border:#3B3E36;
+    --ink:#EDEAE0; --muted:#9B968A; --green:#6FA893; --terracotta:#E08268; --gold:#E4B23C; --blue:#7AA9D6;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh; line-height:1.5; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:26px 20px 80px; }
 
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  .carnet-app{
-    font-family:'Inter',sans-serif;
-    color:var(--ink);
-    background:
-      repeating-linear-gradient(var(--paper) 0px, var(--paper) 27px, var(--paper-line) 28px),
-      var(--paper);
-    max-width:420px;
-    margin:0 auto;
-    min-height:640px;
-    position:relative;
-    border-radius:18px;
-    overflow:hidden;
-    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  header.led{
+    background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    padding:22px 26px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;
   }
-  .carnet-app::before{
-    content:"";
-    position:absolute;
-    top:0; bottom:0; left:38px;
-    width:2px;
-    background:rgba(196,87,74,0.35);
-    pointer-events:none;
-    z-index:1;
+  header.led h1{ font-family:var(--font-display); font-weight:700; font-size:clamp(24px,4vw,32px); margin:0 0 6px; }
+  header.led input#famTitle{
+    font-family:var(--font-display); font-weight:700; font-size:clamp(22px,4vw,30px);
+    background:transparent; border:none; border-bottom:1px dashed var(--border); color:var(--ink);
+    padding:2px 0; width:280px; max-width:60vw;
   }
+  header.led input#famTitle:focus{ outline:none; border-bottom-color:var(--green); }
+  header.led .sub{ color:var(--muted); font-size:13px; }
+  .kpis{ display:flex; gap:22px; flex-wrap:wrap; }
+  .kpi{ text-align:right; }
+  .kpi .l{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+  .kpi .v{ font-family:var(--font-mono); font-size:19px; font-weight:600; }
+  .kpi .v.pos{ color:var(--green); }
+  .kpi .v.neg{ color:var(--terracotta); }
 
-  /* HEADER */
-  .c-header{
-    position:relative;
-    z-index:2;
-    padding:22px 20px 14px 48px;
+  nav.tabs{ display:flex; gap:4px; margin-bottom:18px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  nav.tabs button{
+    font-family:var(--font-display); font-size:15px; background:none; border:none; color:var(--muted);
+    padding:10px 4px; margin-right:24px; cursor:pointer; border-bottom:3px solid transparent;
   }
-  .c-header .eyebrow{
-    font-family:'Kalam',cursive;
-    font-size:15px;
-    color:var(--ink-soft);
-    display:block;
-    transform:rotate(-1deg);
-  }
-  .c-header h1{
-    font-family:'Kalam',cursive;
-    font-weight:700;
-    font-size:32px;
-    margin:2px 0 0 0;
-    line-height:1;
-    transform:rotate(-0.5deg);
-  }
-  .c-header h1 .dot{color:var(--margin);}
+  nav.tabs button:hover{ color:var(--ink); }
+  nav.tabs button.active{ color:var(--green); border-bottom-color:var(--green); }
 
-  /* CONTENT */
-  .c-content{
-    position:relative;
-    z-index:2;
-    padding:6px 18px 90px 48px;
-    min-height:480px;
-  }
-  .c-view{display:none;}
-  .c-view.active{display:block;}
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; }
 
-  /* SECTION LABEL */
-  .c-sec-label{
-    font-family:'Kalam',cursive;
-    font-size:19px;
-    font-weight:700;
-    margin:18px 0 10px 0;
-    display:flex;
-    align-items:baseline;
-    gap:8px;
-  }
-  .c-sec-label .count{
-    font-family:'Inter',sans-serif;
-    font-size:12px;
-    font-weight:600;
-    color:var(--ink-soft);
-  }
+  section.view{ display:none; }
+  section.view.active{ display:block; }
 
-  /* STAT ROW */
-  .c-stats{
-    display:flex;
-    gap:10px;
-    margin-bottom:6px;
-  }
-  .c-stat{
-    flex:1;
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-radius:4px;
-    padding:12px 10px;
-    position:relative;
-  }
-  .c-stat .num{
-    font-family:'Kalam',cursive;
-    font-size:26px;
-    font-weight:700;
-    line-height:1;
-  }
-  .c-stat .lbl{
-    font-size:11px;
-    color:var(--ink-soft);
-    margin-top:4px;
-    display:block;
-  }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:20px 22px; margin-bottom:18px; }
+  .card h2{ font-family:var(--font-display); font-size:19px; font-weight:600; margin:0 0 4px; }
+  .card .sub{ color:var(--muted); font-size:13px; margin:0 0 16px; }
 
-  /* CARD (session / review entry) */
-  .c-card{
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-left:5px solid var(--y);
-    border-radius:3px;
-    padding:11px 13px;
-    margin-bottom:10px;
-    position:relative;
+  label{ font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  input[type=text], input[type=number], input[type=date], input[type=file], select{
+    width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--ink);
+    font:inherit; font-size:14px; padding:9px 10px; border-radius:4px;
   }
-  .c-card .top-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:8px;
-  }
-  .c-card .matiere{
-    font-weight:700;
-    font-size:14px;
-  }
-  .c-card .sujet{
-    font-size:12.5px;
-    color:var(--ink-soft);
-    margin-top:1px;
-  }
-  .c-card .meta{
-    display:flex;
-    gap:10px;
-    margin-top:8px;
-    font-size:11.5px;
-    color:var(--ink-soft);
-    align-items:center;
-    flex-wrap:wrap;
-  }
-  .c-card .meta span{display:flex;align-items:center;gap:3px;}
-  .c-card .diff-dots{display:inline-flex;gap:2px;}
-  .c-card .diff-dots i{
-    width:6px;height:6px;border-radius:50%;
-    background:var(--paper-line);
-    display:inline-block;
-  }
-  .c-card .diff-dots i.on{background:var(--margin);}
-  .c-card .notes{
-    font-size:12px;
-    color:var(--ink-soft);
-    margin-top:7px;
-    font-style:italic;
-    border-top:1px dashed var(--paper-line);
-    padding-top:6px;
-  }
-  .c-card .del{
-    background:none;border:none;color:var(--ink-faint);
-    font-size:16px;cursor:pointer;padding:0 2px;line-height:1;
-  }
-  .c-card .del:active{color:var(--danger);}
-  .c-card.overdue{border-left-color:var(--margin);}
-  .c-card .review-pill{
-    display:inline-flex;
-    align-items:center;
-    gap:5px;
-    font-size:11px;
-    font-weight:600;
-    padding:3px 8px;
-    border-radius:20px;
-    background:#F2E9D8;
-    color:var(--ink-soft);
-    margin-top:8px;
-  }
-  .c-card .review-pill.late{background:#F6E1DD;color:var(--danger);}
-  .c-card button.done-btn{
-    margin-top:8px;
-    border:1px solid var(--g);
-    color:#3F6B4C;
-    background:#F2F7F2;
-    font-size:11.5px;
-    font-weight:600;
-    padding:5px 10px;
-    border-radius:20px;
-    cursor:pointer;
-  }
-  .c-card button.done-btn:active{background:var(--g);color:white;}
+  input:focus, select:focus{ outline:none; border-color:var(--green); }
+  .field{ margin-bottom:12px; }
+  .grid-form{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:12px; }
 
-  .c-empty{
-    font-family:'Kalam',cursive;
-    font-size:15px;
-    color:var(--ink-faint);
-    text-align:center;
-    padding:30px 10px;
-    transform:rotate(-0.5deg);
-  }
+  button.btn{ font-family:var(--font-body); font-weight:600; font-size:14px; background:var(--green); color:#fff;
+    border:none; border-radius:4px; padding:10px 18px; cursor:pointer; }
+  button.btn:hover{ filter:brightness(1.08); }
+  button.btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--border); }
+  button.btn.small{ padding:6px 12px; font-size:12.5px; }
+  button.btn:disabled{ opacity:.5; cursor:not-allowed; }
+  button.icon-btn{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 6px; }
+  button.icon-btn:hover{ color:var(--terracotta); }
 
-  /* FORM */
-  .c-field{margin-bottom:16px;}
-  .c-field label{
-    display:block;
-    font-size:12px;
-    font-weight:600;
-    color:var(--ink-soft);
-    margin-bottom:6px;
-    letter-spacing:0.2px;
-  }
-  .c-chips{display:flex;flex-wrap:wrap;gap:7px;}
-  .c-chip{
-    padding:7px 12px;
-    border-radius:20px;
-    border:1.5px solid var(--paper-line);
-    background:var(--card-bg);
-    font-size:12.5px;
-    font-weight:600;
-    cursor:pointer;
-    color:var(--ink-soft);
-  }
-  .c-chip.sel{
-    border-color:var(--ink);
-    background:var(--ink);
-    color:var(--paper);
-  }
-  input[type=text], input[type=date], textarea, input[type=number]{
-    width:100%;
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    padding:10px 11px;
-    border:1.5px solid var(--paper-line);
-    border-radius:4px;
-    background:var(--card-bg);
-    color:var(--ink);
-  }
-  input:focus, textarea:focus{outline:2px solid var(--b);outline-offset:1px;}
-  textarea{min-height:60px;resize:vertical;font-family:'Inter',sans-serif;}
-  .c-duree-row{display:flex;gap:8px;align-items:center;}
-  .c-duree-row input[type=number]{width:90px;flex:none;}
-  .c-quick{
-    display:flex;gap:6px;flex:1;
-  }
-  .c-quick button{
-    flex:1;
-    padding:9px 0;
-    border-radius:4px;
-    border:1.5px solid var(--paper-line);
-    background:var(--card-bg);
-    font-size:12px;
-    font-weight:600;
-    color:var(--ink-soft);
-    cursor:pointer;
-  }
-  .c-quick button.sel{background:var(--b);border-color:var(--b);color:white;}
-  .c-diff-row{display:flex;gap:6px;}
-  .c-diff-btn{
-    flex:1;
-    padding:11px 0;
-    border-radius:4px;
-    border:1.5px solid var(--paper-line);
-    background:var(--card-bg);
-    font-size:19px;
-    cursor:pointer;
-    text-align:center;
-  }
-  .c-diff-btn.sel{border-color:var(--ink);background:#F2ECDC;}
-  .c-diff-caption{
-    text-align:center;
-    font-size:11px;
-    color:var(--ink-soft);
-    margin-top:6px;
-  }
-  .c-toggle-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:var(--card-bg);
-    border:1.5px solid var(--paper-line);
-    border-radius:4px;
-    padding:11px 13px;
-  }
-  .c-toggle-row .txt{font-size:13px;font-weight:600;}
-  .c-toggle-row .sub{font-size:11px;color:var(--ink-soft);margin-top:2px;}
-  .c-switch{
-    width:42px;height:24px;border-radius:20px;
-    background:var(--paper-line);
-    position:relative;cursor:pointer;flex:none;
-    border:none;
-  }
-  .c-switch .knob{
-    width:18px;height:18px;border-radius:50%;
-    background:white;position:absolute;top:3px;left:3px;
-    transition:left .15s;box-shadow:0 1px 2px rgba(0,0,0,0.2);
-  }
-  .c-switch.on{background:var(--g);}
-  .c-switch.on .knob{left:21px;}
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-family:var(--font-display); font-weight:600; font-size:12.5px; color:var(--muted);
+    padding:8px 9px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td{ padding:8px 9px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  td.num, th.num{ text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  td.amt.pos{ color:var(--green); } td.amt.neg{ color:var(--terracotta); }
+  .empty{ color:var(--muted); font-size:13px; padding:18px 4px; text-align:center; }
+  .table-scroll{ overflow-x:auto; }
 
-  .c-submit{
-    width:100%;
-    padding:13px;
-    border-radius:6px;
-    border:none;
-    background:var(--ink);
-    color:var(--paper);
-    font-family:'Kalam',cursive;
-    font-size:18px;
-    font-weight:700;
-    cursor:pointer;
-    margin-top:6px;
-  }
-  .c-submit:active{opacity:0.85;}
+  .tag{ display:inline-block; font-size:10.5px; font-weight:600; padding:2px 7px; border-radius:9px; white-space:nowrap; }
+  .tag.rule{ background:rgba(47,93,80,.14); color:var(--green); }
+  .tag.ai{ background:rgba(180,136,30,.16); color:var(--gold); }
+  .tag.manual{ background:var(--surface-2); color:var(--muted); }
+  .tag.import{ background:rgba(58,110,165,.14); color:var(--blue); }
+  .tag.none{ background:rgba(181,83,60,.14); color:var(--terracotta); }
 
-  /* FILTER BAR (historique) */
-  .c-filterbar{
-    display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:6px;
-  }
-  .c-filterbar::-webkit-scrollbar{display:none;}
+  .catsel{ font-size:12.5px; padding:5px 6px; }
 
-  /* BOTTOM NAV */
-  .c-nav{
-    position:absolute;
-    bottom:0;left:0;right:0;
-    z-index:3;
-    background:var(--card-bg);
-    border-top:1.5px solid var(--paper-line);
-    display:flex;
-    padding:8px 4px 10px 4px;
-  }
-  .c-nav-btn{
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:2px;
-    background:none;
-    border:none;
-    cursor:pointer;
-    color:var(--ink-faint);
-    padding:4px 1px;
-  }
-  .c-nav-btn .ic{font-size:15px;line-height:1;}
-  .c-nav-btn .lbl{font-size:9px;font-weight:600;white-space:nowrap;}
-  .c-nav-btn.active{color:var(--margin);}
-  .c-nav-btn{position:relative;}
-  .c-nav-btn .run-dot{
-    position:absolute;top:2px;right:calc(50% - 15px);
-    width:7px;height:7px;border-radius:50%;
-    background:var(--margin);
-    display:none;
-    animation:pulse 1.4s infinite;
-  }
-  .c-nav-btn.has-run .run-dot{display:block;}
-  .chat-badge{
-    position:absolute;
-    top:0; right:calc(50% - 20px);
-    background:var(--margin);
-    color:white;
-    font-size:9px;
-    font-weight:700;
-    min-width:15px;
-    height:15px;
-    border-radius:8px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:0 3px;
-    line-height:1;
-    cursor:help;
-  }
-  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  .drop{ border:2px dashed var(--border); border-radius:6px; padding:26px; text-align:center; color:var(--muted); }
+  .drop.drag{ border-color:var(--green); color:var(--green); }
 
-  /* MINUTEUR */
-  .c-timer-wrap{
-    text-align:center;
-    padding:14px 0 6px 0;
-  }
-  .c-timer-display{
-    font-family:'Kalam',cursive;
-    font-weight:700;
-    font-size:58px;
-    letter-spacing:1px;
-    line-height:1;
-    margin:14px 0 4px 0;
-    transform:rotate(-0.5deg);
-  }
-  .c-timer-display.running{color:var(--margin);}
-  .c-timer-sub{
-    font-size:12px;
-    color:var(--ink-soft);
-    margin-bottom:18px;
-  }
-  .c-timer-controls{
-    display:flex;
-    gap:12px;
-    justify-content:center;
-    margin-bottom:8px;
-  }
-  .c-timer-btn{
-    width:64px;height:64px;
-    border-radius:50%;
-    border:none;
-    font-size:22px;
-    cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-  }
-  .c-timer-btn.start{background:var(--ink);color:var(--paper);}
-  .c-timer-btn.reset{background:var(--card-bg);border:1.5px solid var(--paper-line);color:var(--ink-soft);width:52px;height:52px;align-self:center;font-size:18px;}
-  .c-timer-finish{
-    width:100%;
-    padding:13px;
-    border-radius:6px;
-    border:1.5px solid var(--g);
-    background:#F2F7F2;
-    color:#3F6B4C;
-    font-family:'Kalam',cursive;
-    font-size:17px;
-    font-weight:700;
-    cursor:pointer;
-    margin-top:18px;
-  }
-  .c-timer-finish:disabled{opacity:0.4;cursor:default;}
+  .hint{ font-size:12px; color:var(--muted); margin-top:8px; }
 
-  /* STATISTIQUES */
-  .c-bar-row{
-    margin-bottom:14px;
-  }
-  .c-bar-row .bar-top{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-bottom:5px;
-  }
-  .c-bar-row .bar-name{font-size:13px;font-weight:700;}
-  .c-bar-row .bar-val{font-size:11.5px;color:var(--ink-soft);}
-  .c-bar-track{
-    height:9px;
-    border-radius:5px;
-    background:var(--paper-line);
-    overflow:hidden;
-  }
-  .c-bar-fill{
-    height:100%;
-    border-radius:5px;
-  }
-  .c-bar-sub{
-    display:flex;
-    gap:10px;
-    margin-top:4px;
-    font-size:10.5px;
-    color:var(--ink-faint);
-  }
-  .c-note-box{
-    background:#F2ECDC;
-    border:1px solid var(--paper-line);
-    border-radius:4px;
-    padding:11px 13px;
-    font-size:12px;
-    color:var(--ink-soft);
-    margin-top:20px;
-    line-height:1.5;
-  }
-  .c-note-box b{color:var(--ink);}
+  .bar-track{ height:9px; background:var(--surface-2); border-radius:5px; overflow:hidden; border:1px solid var(--border); }
+  .bar-fill{ height:100%; background:var(--green); }
+  .bar-fill.exp{ background:var(--terracotta); }
+  .cat-row{ margin-bottom:13px; }
+  .cat-row .top{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px; }
+  .cat-row .name{ font-weight:600; }
+  .cat-row .amt{ font-family:var(--font-mono); color:var(--muted); }
 
-  .c-chart-box{
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-radius:4px;
-    padding:10px 8px 4px 4px;
-    margin-bottom:6px;
-  }
-  .c-chart-box svg{display:block;}
-  .c-chart-empty-note{
-    font-size:11px;
-    color:var(--ink-faint);
-    text-align:center;
-    padding:20px 8px;
-    font-family:'Kalam',cursive;
-  }
+  select.mapsel{ max-width:220px; }
+  .mapping-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:16px; }
 
-  .c-export-btn{
-    width:100%;
-    padding:12px;
-    border-radius:6px;
-    border:1.5px solid var(--ink);
-    background:var(--card-bg);
-    color:var(--ink);
-    font-family:'Kalam',cursive;
-    font-size:16px;
-    font-weight:700;
-    cursor:pointer;
-    margin-top:16px;
-  }
+  .sync-banner{ font-size:12.5px; padding:8px 14px; border-radius:5px; margin-bottom:16px; border:1px solid var(--border); }
+  .sync-banner.cloud{ background:rgba(47,93,80,.10); color:var(--green); border-color:rgba(47,93,80,.3); }
+  .sync-banner.local{ background:var(--surface-2); color:var(--muted); }
+  .sync-banner.error{ background:rgba(181,83,60,.10); color:var(--terracotta); border-color:rgba(181,83,60,.3); }
 
-  /* BILAN OVERLAY */
-  #bilanOverlay, #evalOverlay, #onboardingOverlay, #compareOverlay, #accountOverlay, #statsPrefsOverlay{
-    display:none;
-    position:absolute;
-    inset:0;
-    z-index:20;
-    background:var(--paper);
-    overflow-y:auto;
-    border-radius:18px;
-  }
-  #bilanOverlay.show, #evalOverlay.show, #onboardingOverlay.show, #compareOverlay.show, #accountOverlay.show, #statsPrefsOverlay.show{display:block;}
-  #onboardingOverlay{z-index:30;display:block;}
-  .c-profile-badge{
-    position:absolute;
-    top:20px; right:20px;
-    font-size:11px;
-    font-weight:600;
-    color:var(--ink-soft);
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-radius:20px;
-    padding:4px 11px;
-    cursor:pointer;
-  }
-  .c-leader-row{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-radius:4px;
-    padding:11px 13px;
-    margin-bottom:9px;
-  }
-  .c-leader-row.me{border-left:4px solid var(--margin);}
-  .c-leader-row .name{font-weight:700;font-size:14px;}
-  .c-leader-row .val{font-family:'Kalam',cursive;font-weight:700;font-size:17px;color:var(--g);}
-  .c-activity-row{
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-left:4px solid var(--b);
-    border-radius:3px;
-    padding:9px 12px;
-    margin-bottom:8px;
-  }
-  .c-activity-row .top-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
-  .c-activity-row .who{font-weight:700;font-size:13px;}
-  .c-activity-row .when{font-size:10.5px;color:var(--ink-faint);white-space:nowrap;}
-  .c-activity-row .what{font-size:12px;color:var(--ink-soft);margin-top:2px;}
-
-  /* CHAT */
-  .c-chat-messages{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    padding-bottom:8px;
-  }
-  .c-chat-bubble{
-    max-width:78%;
-    padding:8px 12px;
-    border-radius:14px;
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    align-self:flex-start;
-  }
-  .c-chat-bubble.me{
-    align-self:flex-end;
-    background:#F2ECDC;
-    border-color:#E4D8B8;
-  }
-  .c-chat-bubble .who{
-    font-size:10.5px;
-    font-weight:700;
-    color:var(--ink-soft);
-    margin-bottom:2px;
-  }
-  .c-chat-bubble .txt{font-size:13.5px;color:var(--ink);white-space:pre-wrap;word-break:break-word;}
-  .c-chat-bubble .ts{font-size:9.5px;color:var(--ink-faint);margin-top:3px;text-align:right;}
-  .c-chat-inputbar{
-    position:absolute;
-    bottom:56px;
-    left:0; right:0;
-    z-index:4;
-    background:var(--card-bg);
-    border-top:1.5px solid var(--paper-line);
-    display:flex;
-    gap:8px;
-    padding:9px 12px;
-  }
-  .c-chat-inputbar input{
-    flex:1;
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    padding:9px 12px;
-    border:1.5px solid var(--paper-line);
-    border-radius:20px;
-    background:var(--paper);
-  }
-  .c-chat-inputbar button{
-    width:38px;height:38px;
-    border-radius:50%;
-    border:none;
-    background:var(--ink);
-    color:var(--paper);
-    font-size:15px;
-    cursor:pointer;
-    flex:none;
-  }
-  .c-chat-inputbar #chatAttachBtn{
-    background:var(--card-bg);
-    border:1.5px solid var(--paper-line);
-    color:var(--ink-soft);
-  }
-  #view-chat{padding-bottom:56px;}
-  select{
-    width:100%;
-    font-family:'Inter',sans-serif;
-    font-size:14px;
-    padding:10px 11px;
-    border:1.5px solid var(--paper-line);
-    border-radius:4px;
-    background:var(--card-bg);
-    color:var(--ink);
-  }
-  .c-eval-card{
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-left:5px solid var(--margin);
-    border-radius:3px;
-    padding:11px 13px;
-    margin-bottom:10px;
-  }
-  .c-eval-card .top-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
-  .c-eval-type-badge{
-    display:inline-block;
-    font-size:10.5px;
-    font-weight:700;
-    padding:2px 8px;
-    border-radius:20px;
-    background:#F2E9D8;
-    color:var(--ink-soft);
-    margin-bottom:5px;
-  }
-  .c-eval-type-badge.dst{background:#F6E1DD;color:var(--margin);}
-  .c-eval-card .matiere{font-weight:700;font-size:14px;}
-  .c-eval-card .chapitre{font-size:12.5px;color:var(--ink-soft);margin-top:1px;}
-  .c-eval-card .meta{display:flex;gap:10px;margin-top:8px;font-size:11.5px;color:var(--ink-soft);}
-  .c-eval-card .notes{font-size:12px;color:var(--ink-soft);margin-top:7px;font-style:italic;border-top:1px dashed var(--paper-line);padding-top:6px;}
-  .c-eval-card.soon{border-left-color:var(--o);}
-  .c-eval-card .del{background:none;border:none;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:0 2px;line-height:1;}
-  .c-matiere-eval-hint{
-    font-size:11.5px;
-    color:var(--margin);
-    background:#F6E1DD;
-    border-radius:4px;
-    padding:7px 10px;
-  }
-  .c-sugg-card{
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-left:5px solid var(--g);
-    border-radius:3px;
-    padding:11px 13px;
-    margin-bottom:10px;
-  }
-  .c-sugg-card .top-row{display:flex;justify-content:space-between;align-items:center;gap:8px;}
-  .c-sugg-card .matiere{font-weight:700;font-size:14px;}
-  .c-sugg-card .duree{
-    font-family:'Kalam',cursive;
-    font-weight:700;
-    font-size:16px;
-    color:var(--g);
-    white-space:nowrap;
-  }
-  .c-sugg-card .reasons{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
-  .c-sugg-card .go-btn{
-    margin-top:8px;
-    border:1px solid var(--ink);
-    background:none;
-    color:var(--ink);
-    font-size:11.5px;
-    font-weight:600;
-    padding:5px 10px;
-    border-radius:20px;
-    cursor:pointer;
-  }
-  .bilan-topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:16px 18px 8px 18px;
-    position:sticky;
-    top:0;
-    background:var(--paper);
-    z-index:2;
-  }
-  .bilan-topbar .close{
-    background:none;border:none;font-size:20px;color:var(--ink-soft);cursor:pointer;
-  }
-  .bilan-body{padding:6px 22px 24px 22px;}
-  .bilan-title{
-    font-family:'Kalam',cursive;
-    font-size:26px;
-    font-weight:700;
-    margin:4px 0 2px 0;
-    transform:rotate(-0.5deg);
-  }
-  .bilan-sub{font-size:12px;color:var(--ink-soft);margin-bottom:14px;}
-  .bilan-period-chips{display:flex;gap:7px;margin-bottom:16px;}
-  .bilan-name-field{margin-bottom:16px;}
-  .bilan-name-field input{width:100%;}
-  .bilan-stats{
-    display:flex;gap:10px;margin-bottom:20px;
-  }
-  .bilan-stat{
-    flex:1;text-align:center;
-    background:var(--card-bg);
-    border:1px solid var(--paper-line);
-    border-radius:4px;
-    padding:12px 6px;
-  }
-  .bilan-stat .num{font-family:'Kalam',cursive;font-size:22px;font-weight:700;display:block;}
-  .bilan-stat .lbl{font-size:10.5px;color:var(--ink-soft);}
-  .bilan-table{width:100%;border-collapse:collapse;margin-bottom:18px;}
-  .bilan-table th{
-    text-align:left;font-size:11px;color:var(--ink-soft);
-    padding-bottom:6px;border-bottom:1.5px solid var(--ink);
-  }
-  .bilan-table td{
-    font-size:12.5px;padding:7px 4px;border-bottom:1px solid var(--paper-line);
-  }
-  .bilan-table td.tnum{text-align:right;}
-  .bilan-actions{display:flex;flex-direction:column;gap:9px;margin-top:8px;}
-  .bilan-actions button{
-    padding:12px;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;
-    font-family:'Inter',sans-serif;
-  }
-  .bilan-actions .btn-print{background:var(--ink);color:var(--paper);border:none;}
-  .bilan-actions .btn-share{background:var(--card-bg);color:var(--ink);border:1.5px solid var(--paper-line);}
-  .bilan-foot{font-size:10.5px;color:var(--ink-faint);text-align:center;margin-top:18px;}
-
-  @media print{
-    body *{visibility:hidden;}
-    #bilanOverlay, #bilanOverlay *{visibility:visible;}
-    #bilanOverlay{position:absolute;inset:0;overflow:visible;}
-    .bilan-topbar, .bilan-actions, .bilan-period-chips, .bilan-name-field{display:none !important;}
-  }
-
-  .c-toast{
-    position:absolute;
-    bottom:78px;left:50%;
-    transform:translateX(-50%) translateY(10px);
-    background:var(--ink);
-    color:var(--paper);
-    padding:8px 16px;
-    border-radius:20px;
-    font-size:12.5px;
-    font-weight:600;
-    z-index:10;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .2s, transform .2s;
-  }
-  .c-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-
-  .c-loading{
-    text-align:center;
-    padding:40px;
-    font-family:'Kalam',cursive;
-    color:var(--ink-faint);
-  }
-
-  .c-reset-link{
-    display:block;
-    text-align:center;
-    font-size:11px;
-    color:var(--ink-faint);
-    margin-top:26px;
-    text-decoration:underline;
-    background:none;border:none;cursor:pointer;
-  }
+  footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
+  @media (max-width:560px){ .wrap{ padding:16px 12px 60px; } header.led{ padding:18px; } }
 </style>
 </head>
 <body>
+<div class="wrap">
 
-<div class="carnet-app" id="app">
-  <div id="onboardingOverlay">
-    <div class="bilan-body" style="padding-top:60px;" id="onboardingLoadingWrap">
-      <div class="bilan-title">Chargement<span style="color:var(--margin);">.</span></div>
-      <div class="bilan-sub">Connexion en cours...</div>
+  <header class="led">
+    <div>
+      <input id="famTitle" type="text" value="Comptes de la famille">
+      <div class="sub">Import bancaire, tri automatique, suivi mensuel — données conservées dans ce navigateur.</div>
     </div>
-    <div class="bilan-body" style="padding-top:60px;display:none;" id="onboardingFormWrap">
-      <div class="bilan-title">Bienvenue<span style="color:var(--margin);">.</span></div>
-      <div class="bilan-sub" style="margin-bottom:22px;">Comment tu t'appelles ? Chacun garde ses propres données, et vous pourrez comparer vos statistiques.</div>
+    <div class="kpis">
+      <div class="kpi"><div class="l">Revenus</div><div class="v pos" id="kpiIn">0,00 €</div></div>
+      <div class="kpi"><div class="l">Dépenses</div><div class="v neg" id="kpiOut">0,00 €</div></div>
+      <div class="kpi"><div class="l">Solde</div><div class="v" id="kpiNet">0,00 €</div></div>
+    </div>
+  </header>
 
-      <div id="onboardingNewWrap">
-        <div class="c-field">
-          <input type="text" id="onboardingNameInput" placeholder="Ton prénom">
-        </div>
-        <button class="c-submit" id="onboardingSaveBtn">Commencer (nouveau profil)</button>
-        <button class="c-reset-link" id="showLoginLinkBtn" style="margin-top:16px;">J'ai déjà un profil sur un autre appareil</button>
-      </div>
+  <div id="syncBanner" class="sync-banner local">Non connecté — stockage local uniquement.</div>
 
-      <div id="onboardingLoginWrap" style="display:none;">
-        <div class="c-field">
-          <label>Email du profil</label>
-          <input type="text" id="loginEmailInput" placeholder="ton.profil@exemple.com">
-        </div>
-        <div class="c-field">
-          <label>Mot de passe</label>
-          <input type="password" id="loginPasswordInput" placeholder="••••••••">
-        </div>
-        <button class="c-submit" id="loginSubmitBtn">Se connecter</button>
-        <button class="c-reset-link" id="showNewLinkBtn" style="margin-top:16px;">Créer un nouveau profil à la place</button>
+  <div class="card" style="padding:16px 18px; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+      <h2 style="font-size:15px; margin:0;">☁️ Sauvegarde automatique sur Google Drive</h2>
+      <div style="display:flex; gap:8px;">
+        <button class="btn small" onclick="connectDrive()">Connecter</button>
+        <button class="btn secondary small" onclick="manualRefresh()">🔄 Actualiser</button>
+        <button class="btn secondary small" onclick="disconnectDrive()">Déconnecter</button>
       </div>
+    </div>
+    <div class="grid-form" style="margin-top:12px; margin-bottom:6px;">
+      <div class="field" style="grid-column: span 2;">
+        <label>Lien de votre script Google (URL se terminant par /exec)</label>
+        <input type="text" id="scriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+    </div>
+    <p class="hint" id="driveStatus" style="margin-top:2px;">Pas encore connecté. Voir les instructions de configuration fournies séparément.</p>
+  </div>
+
+  <nav class="tabs">
+    <button class="active" data-view="import">Import</button>
+    <button data-view="transactions">Transactions</button>
+    <button data-view="regles">Règles &amp; catégories</button>
+    <button data-view="dashboard">Tableau de bord</button>
+  </nav>
+
+  <div class="toolbar">
+    <span class="hint" style="margin:0;">Une sauvegarde manuelle reste possible en complément.</span>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn secondary small" onclick="exportBackup()">⭳ Exporter la sauvegarde</button>
+      <button class="btn secondary small" onclick="document.getElementById('importBackupFile').click()">⭱ Importer une sauvegarde</button>
+      <input type="file" id="importBackupFile" accept="application/json" style="display:none" onchange="importBackup(this.files[0])">
     </div>
   </div>
 
-  <div class="c-header">
-    <span class="eyebrow" id="dateToday"></span>
-    <h1>Carnet de révisions<span class="dot">.</span></h1>
-    <div id="profileBadge" class="c-profile-badge"></div>
-  </div>
-
-  <div id="accountOverlay">
-    <div class="bilan-topbar">
-      <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Mon compte</span>
-      <button class="close" id="closeAccountBtn">✕</button>
-    </div>
-    <div class="bilan-body">
-      <div class="bilan-sub" id="accountProfileLine" style="margin-bottom:18px;"></div>
-
-      <div id="accountLinkedWrap" style="display:none;">
-        <div class="c-note-box">✅ Compte sauvegardé. Connecte-toi avec cet email sur tes autres appareils pour retrouver tes données.</div>
+  <!-- ============ IMPORT ============ -->
+  <section class="view active" id="view-import">
+    <div class="card">
+      <h2>Importer un relevé bancaire (CSV)</h2>
+      <p class="sub">Exportez vos opérations depuis votre banque au format CSV, puis déposez le fichier ici. Seules les colonnes que vous choisissez (date, libellé, montant) sont importées — le reste n'est jamais lu.</p>
+      <div class="drop" id="dropZone">
+        📄 Glissez un fichier CSV ici, ou
+        <label for="csvFile" style="color:var(--green); cursor:pointer; text-decoration:underline;">choisissez-le</label>
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="display:none" onchange="handleFile(this.files[0])">
       </div>
-
-      <div id="accountLinkWrap">
-        <div class="c-sec-label" style="margin-top:0;">Sauvegarder pour d'autres appareils</div>
-        <div class="bilan-sub">Crée un email + mot de passe pour ce profil, pour pouvoir t'y reconnecter depuis un autre téléphone ou ordinateur.</div>
-        <div class="c-field">
-          <label>Email</label>
-          <input type="text" id="linkEmailInput" placeholder="ton.profil@exemple.com">
-        </div>
-        <div class="c-field">
-          <label>Mot de passe</label>
-          <input type="password" id="linkPasswordInput" placeholder="8 caractères minimum">
-        </div>
-        <button class="c-submit" id="linkSaveBtn">Sauvegarder mon profil</button>
-      </div>
-
-      <div id="migrationWrap" style="display:none;">
-        <div class="c-sec-label">Anciennes données</div>
-        <div class="c-note-box" id="migrationNote"></div>
-        <button class="c-export-btn" id="migrationBtn" style="border-color:var(--g);color:#3F6B4C;margin-top:10px;">Récupérer ces données sur mon profil</button>
-      </div>
-
-      <div id="adminPanelWrap" style="display:none;">
-        <div class="c-sec-label">🛡️ Panneau admin</div>
-        <div class="c-note-box">Sauvegarde manuelle : télécharge un instantané de toutes les données (séances, évaluations, profils, messages) au format JSON.</div>
-        <button class="c-export-btn" id="exportAllBtn" style="margin-top:10px;">💾 Exporter toutes les données</button>
-      </div>
-
-      <div class="c-sec-label">Autre appareil, autre personne</div>
-      <button class="c-export-btn" id="switchProfileBtn" style="border-color:var(--margin);color:var(--margin);">Changer de profil sur cet appareil</button>
-    </div>
-  </div>
-
-  <div class="c-content">
-
-    <!-- ACCUEIL -->
-    <div class="c-view active" id="view-accueil">
-      <div class="c-stats">
-        <div class="c-stat">
-          <span class="num" id="statTemps">0h</span>
-          <span class="lbl">cette semaine</span>
-        </div>
-        <div class="c-stat">
-          <span class="num" id="statSessions">0</span>
-          <span class="lbl">séances / 7j</span>
-        </div>
-        <div class="c-stat">
-          <span class="num" id="statARevoir">0</span>
-          <span class="lbl">à revoir</span>
-        </div>
-      </div>
-
-      <div class="c-sec-label" id="suggsecLabel" style="display:none;">🎯 Suggestions du jour</div>
-      <div id="listeSuggestions"></div>
-
-      <div class="c-sec-label" id="priosecLabel" style="display:none;">⚠️ Évaluations qui approchent</div>
-      <div id="listePrioEval"></div>
-
-      <div class="c-sec-label">À revoir bientôt <span class="count" id="revoirCount"></span></div>
-      <div id="listeARevoir"></div>
-
-      <div class="c-sec-label">Dernières séances <span class="count" id="recentCount"></span></div>
-      <div id="listeRecentes"></div>
-
-      <button class="c-reset-link" id="resetBtn">Réinitialiser toutes les données</button>
-    </div>
-
-    <!-- AJOUTER -->
-    <div class="c-view" id="view-ajouter">
-      <div class="c-sec-label">Nouvelle séance</div>
-
-      <div class="c-field">
-        <div class="c-toggle-row">
-          <div>
-            <div class="txt">🗓️ Révision à programmer</div>
-            <div class="sub">Pas encore faite — juste à prévoir dans le planning</div>
+      <div id="mappingBox" style="display:none; margin-top:18px;">
+        <h2 style="font-size:16px;">Correspondance des colonnes</h2>
+        <div class="mapping-grid">
+          <div class="field"><label>Colonne Date</label><select id="mapDate" class="mapsel"></select></div>
+          <div class="field"><label>Colonne Libellé</label><select id="mapLabel" class="mapsel"></select></div>
+          <div class="field">
+            <label>Montant</label>
+            <select id="mapAmountMode" onchange="toggleAmountMode()">
+              <option value="single">Une seule colonne (+/-)</option>
+              <option value="split">Débit / Crédit séparés</option>
+            </select>
           </div>
-          <button class="c-switch" id="planModeSwitch"><span class="knob"></span></button>
+          <div class="field" id="mapAmountSingleBox"><label>Colonne Montant</label><select id="mapAmount" class="mapsel"></select></div>
+          <div class="field" id="mapDebitBox" style="display:none;"><label>Colonne Débit</label><select id="mapDebit" class="mapsel"></select></div>
+          <div class="field" id="mapCreditBox" style="display:none;"><label>Colonne Crédit</label><select id="mapCredit" class="mapsel"></select></div>
+          <div class="field"><label>Colonne Catégorie (si déjà présente)</label><select id="mapCategory" class="mapsel"></select></div>
         </div>
-      </div>
-
-      <div class="c-field">
-        <label>Matière</label>
-        <div class="c-chips" id="matiereChips"></div>
-        <div style="margin-top:8px;">
-          <input type="text" id="matiereCustom" placeholder="Ou saisir une autre matière...">
+        <p class="hint" id="importPreambleHint" style="display:none;"></p>
+        <div class="table-scroll">
+          <table id="previewTable"></table>
         </div>
-        <div id="matiereEvalHint" style="display:none;margin-top:8px;"></div>
-      </div>
-
-      <div class="c-field" id="linkEvalField" style="display:none;">
-        <label>Lier à une évaluation à venir (optionnel)</label>
-        <select id="linkEvalSelect"></select>
-      </div>
-
-      <div class="c-field">
-        <label>Chapitre / sujet</label>
-        <input type="text" id="sujetInput" placeholder="Ex : Les suites numériques">
-      </div>
-
-      <div class="c-field">
-        <label id="dateFieldLabel">Date</label>
-        <input type="date" id="dateInput">
-      </div>
-
-      <div id="dureeDiffFields">
-        <div class="c-field">
-          <label>Durée</label>
-          <div class="c-duree-row">
-            <input type="number" id="dureeInput" min="0" placeholder="min">
-            <div class="c-quick" id="dureeQuick">
-              <button data-v="15">15</button>
-              <button data-v="30">30</button>
-              <button data-v="45">45</button>
-              <button data-v="60">60</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="c-field">
-          <label>Difficulté ressentie</label>
-          <div class="c-diff-row" id="diffRow">
-            <button class="c-diff-btn" data-v="1">😄</button>
-            <button class="c-diff-btn" data-v="2">🙂</button>
-            <button class="c-diff-btn" data-v="3">😐</button>
-            <button class="c-diff-btn" data-v="4">😕</button>
-            <button class="c-diff-btn" data-v="5">😩</button>
-          </div>
-          <div class="c-diff-caption" id="diffCaption">Choisis un niveau</div>
-        </div>
-      </div>
-
-      <div class="c-field">
-        <label>Notes (optionnel)</label>
-        <textarea id="notesInput" placeholder="Ce qui a coincé, ce qu'il faut refaire..."></textarea>
-      </div>
-
-      <div class="c-field" id="revoirFieldWrap">
-        <div class="c-toggle-row">
-          <div>
-            <div class="txt">Programmer une révision</div>
-            <div class="sub" id="revoirSub">Intervalle croissant selon la répétition et la difficulté</div>
-          </div>
-          <button class="c-switch on" id="revoirSwitch"><span class="knob"></span></button>
-        </div>
-        <div id="revoirDateWrap" style="margin-top:8px;">
-          <input type="date" id="revoirDateInput">
-        </div>
-      </div>
-
-      <button class="c-submit" id="saveBtn">Enregistrer la séance</button>
-    </div>
-
-    <!-- MINUTEUR -->
-    <div class="c-view" id="view-minuteur">
-      <div class="c-sec-label">Minuteur de révision</div>
-
-      <div class="c-field">
-        <label>Matière (optionnel, à choisir avant de démarrer)</label>
-        <div class="c-chips" id="timerMatiereChips"></div>
-      </div>
-
-      <div class="c-field">
-        <label>Chapitre / sujet (optionnel)</label>
-        <input type="text" id="timerSujetInput" placeholder="Ex : Les suites numériques">
-      </div>
-
-      <div class="c-timer-wrap">
-        <div class="c-timer-display" id="timerDisplay">00:00</div>
-        <div class="c-timer-sub" id="timerSub">Prêt à démarrer</div>
-        <div class="c-timer-controls">
-          <button class="c-timer-btn reset" id="timerReset" title="Réinitialiser">↺</button>
-          <button class="c-timer-btn start" id="timerStart">▶</button>
-        </div>
-      </div>
-
-      <button class="c-timer-finish" id="timerFinish" disabled>Terminer et enregistrer la séance</button>
-
-      <div class="c-note-box" style="margin-top:16px;">
-        💡 <b>Astuce efficace.</b> Se tester soi-même (réciter, refaire un exercice sans le corrigé, puis vérifier) marche bien mieux que relire ses notes. Alterner deux matières dans la même session aide aussi à mieux retenir.
+        <p class="hint" id="importSummary"></p>
+        <button class="btn" onclick="confirmImport()" style="margin-top:12px;">Importer ces opérations</button>
       </div>
     </div>
+  </section>
 
-    <!-- HISTORIQUE -->
-    <div class="c-view" id="view-historique">
-      <div class="c-sec-label">Historique <span class="count" id="histCount"></span></div>
-      <div class="c-filterbar" id="histFilters"></div>
-      <div id="histList"></div>
+  <!-- ============ TRANSACTIONS ============ -->
+  <section class="view" id="view-transactions">
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0;">Journal des opérations</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn small" id="aiSortBtn" onclick="runAiSort()">✨ Trier avec l'IA les non catégorisées</button>
+          <button class="btn secondary small" onclick="exportCsv()">⭳ Export CSV</button>
+        </div>
+      </div>
+      <p class="sub">Le tri par règles (mots-clés) fonctionne sans IA et sans abonnement, y compris hors ligne. Le bouton IA est un coup de pouce optionnel pour les cas ambigus : il utilise simplement votre usage Claude habituel.</p>
+      <div class="grid-form" style="margin-bottom:6px;">
+        <div class="field"><label>Recherche</label><input type="text" id="filterSearch" placeholder="Libellé..." oninput="renderTransactions()"></div>
+        <div class="field"><label>Catégorie</label><select id="filterCategory" onchange="renderTransactions()"></select></div>
+        <div class="field"><label>Mois</label><select id="filterMonth" onchange="renderTransactions()"></select></div>
+      </div>
+      <p class="hint" id="aiHint" style="display:none;"></p>
+      <div id="aiRulesReview" class="card" style="display:none; margin:0 0 16px; padding:14px 16px; background:var(--surface-2);">
+        <h2 style="font-size:15px; margin-bottom:8px;">Règles proposées par l'IA</h2>
+        <p class="sub" style="margin-bottom:10px;">Ces règles s'appliqueront automatiquement aux futurs imports. Décochez celles que vous ne voulez pas garder.</p>
+        <div id="aiRulesList"></div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="btn small" onclick="confirmAiRules()">Ajouter les règles cochées</button>
+          <button class="btn secondary small" onclick="dismissAiRules()">Ignorer</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Libellé</th><th class="num">Montant</th><th>Catégorie</th><th>Origine</th><th></th></tr></thead>
+          <tbody id="txTable"></tbody>
+        </table>
+      </div>
+      <div id="txEmpty" class="empty">Aucune opération. Importez un relevé pour commencer.</div>
+    </div>
+  </section>
+
+  <!-- ============ REGLES & CATEGORIES ============ -->
+  <section class="view" id="view-regles">
+    <div class="card">
+      <h2>Catégories</h2>
+      <p class="sub">La liste des postes utilisés pour classer les opérations.</p>
+      <div class="grid-form">
+        <div class="field"><label>Nom</label><input type="text" id="newCatName" placeholder="Ex : Alimentation"></div>
+        <div class="field"><label>Type</label><select id="newCatType"><option value="depense">Dépense</option><option value="revenu">Revenu</option></select></div>
+        <div class="field" style="align-self:end;"><button class="btn" onclick="addCategory()">Ajouter</button></div>
+      </div>
+      <table>
+        <thead><tr><th>Catégorie</th><th>Type</th><th></th></tr></thead>
+        <tbody id="catTable"></tbody>
+      </table>
     </div>
 
-    <!-- PLANNING -->
-    <div class="c-view" id="view-planning">
-      <div class="c-sec-label">Évaluations à venir <span class="count" id="evalCount"></span></div>
-      <div id="evalList"></div>
-      <button class="c-export-btn" id="openEvalBtn" style="margin-bottom:24px;">📝 Ajouter une évaluation</button>
-
-      <div class="c-sec-label">Planning des révisions <span class="count" id="planCount"></span></div>
-      <div id="planList"></div>
+    <div class="card">
+      <h2>Règles de tri automatique</h2>
+      <p class="sub">Si le libellé d'une opération contient ce mot-clé (insensible à la casse), elle est classée automatiquement dans la catégorie associée, dès l'import.</p>
+      <div class="grid-form">
+        <div class="field"><label>Mot-clé dans le libellé</label><input type="text" id="newRuleKeyword" placeholder="Ex : CARREFOUR"></div>
+        <div class="field"><label>Catégorie</label><select id="newRuleCategory"></select></div>
+        <div class="field" style="align-self:end;"><button class="btn" onclick="addRule()">Ajouter</button></div>
+      </div>
+      <table>
+        <thead><tr><th>Mot-clé</th><th>Catégorie</th><th></th></tr></thead>
+        <tbody id="ruleTable"></tbody>
+      </table>
+      <button class="btn secondary small" style="margin-top:14px;" onclick="reapplyRules()">Réappliquer les règles aux opérations non catégorisées</button>
     </div>
+  </section>
 
-    <div id="evalOverlay">
-      <div class="bilan-topbar">
-        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Nouvelle évaluation</span>
-        <button class="close" id="closeEvalBtn">✕</button>
+  <!-- ============ DASHBOARD ============ -->
+  <section class="view" id="view-dashboard">
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0;">Répartition par catégorie</h2>
+        <select id="dashMonth" onchange="renderDashboard()" style="max-width:180px;"></select>
       </div>
-      <div class="bilan-body">
-        <div class="c-field">
-          <label>Type</label>
-          <div class="c-diff-row" id="evalTypeRow">
-            <button class="c-diff-btn" data-v="dst" style="font-size:13px;flex:1;">📚<br>Devoir sur table<br><span style="font-size:10px;font-weight:400;color:var(--ink-soft);">(bilan global)</span></button>
-            <button class="c-diff-btn" data-v="evaluation" style="font-size:13px;flex:1;">🔍<br>Évaluation<br><span style="font-size:10px;font-weight:400;color:var(--ink-soft);">(un chapitre)</span></button>
-          </div>
-        </div>
-
-        <div class="c-field">
-          <label>Matière</label>
-          <div class="c-chips" id="evalMatiereChips"></div>
-        </div>
-
-        <div class="c-field" id="evalChapitreField" style="display:none;">
-          <label>Chapitre concerné</label>
-          <select id="evalChapitreSelect"></select>
-          <div id="evalChapitreCustomWrap" style="margin-top:8px; display:none;">
-            <input type="text" id="evalChapitreCustom" placeholder="Précise le chapitre...">
-          </div>
-        </div>
-
-        <div class="c-field">
-          <label>Date de l'évaluation</label>
-          <input type="date" id="evalDateInput">
-        </div>
-
-        <div class="c-field">
-          <label>Notes (optionnel)</label>
-          <textarea id="evalNotesInput" placeholder="Détails, format de l'épreuve..."></textarea>
-        </div>
-
-        <button class="c-submit" id="evalSaveBtn">Enregistrer l'évaluation</button>
-      </div>
+      <p class="sub">Dépenses par poste sur la période sélectionnée.</p>
+      <div id="dashCats"></div>
+      <div id="dashCatsEmpty" class="empty">Aucune dépense catégorisée sur cette période.</div>
     </div>
-
-    <!-- STATISTIQUES -->
-    <div class="c-view" id="view-statistiques">
-      <div class="c-sec-label" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>Statistiques</span>
-        <button id="openStatsPrefsBtn" style="background:none;border:1px solid var(--paper-line);border-radius:20px;padding:4px 11px;font-size:11px;color:var(--ink-soft);cursor:pointer;">⚙️ Personnaliser</button>
+    <div class="card">
+      <h2>Évolution mensuelle</h2>
+      <p class="sub">Revenus, dépenses et solde, mois par mois.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mois</th><th class="num">Revenus</th><th class="num">Dépenses</th><th class="num">Solde</th></tr></thead>
+          <tbody id="monthTable"></tbody>
+        </table>
       </div>
-      <div class="c-stats">
-        <div class="c-stat">
-          <span class="num" id="statTotalTemps">0h</span>
-          <span class="lbl">temps total</span>
-        </div>
-        <div class="c-stat">
-          <span class="num" id="statTotalSessions">0</span>
-          <span class="lbl">séances</span>
-        </div>
-        <div class="c-stat">
-          <span class="num" id="statMoyDiff">-</span>
-          <span class="lbl">difficulté moy.</span>
-        </div>
-      </div>
-
-      <div id="statSectionRepartition">
-        <div class="c-sec-label">Répartition par matière</div>
-        <div id="statBars"></div>
-      </div>
-
-      <div id="statSectionWeekly">
-        <div class="c-sec-label">Temps de révision par semaine</div>
-        <div class="c-chart-box" id="chartWeekly"></div>
-      </div>
-
-      <div id="statSectionWeekday">
-        <div class="c-sec-label">Jours de révision habituels</div>
-        <div class="c-chart-box" id="chartWeekday"></div>
-      </div>
-
-      <div id="statSectionDifficulty">
-        <div class="c-sec-label">Évolution de la difficulté ressentie</div>
-        <div class="c-chart-box" id="chartDifficulty"></div>
-      </div>
-
-      <div id="statSectionNote">
-        <div class="c-note-box" id="statScheduleNote"></div>
-      </div>
-
-      <button class="c-export-btn" id="openBilanBtn">📄 Générer un bilan à présenter</button>
-      <button class="c-export-btn" id="openCompareBtn" style="margin-top:10px;">👥 Comparer avec mes amis</button>
+      <div id="monthEmpty" class="empty">Pas encore de données.</div>
     </div>
+  </section>
 
-    <div id="statsPrefsOverlay">
-      <div class="bilan-topbar">
-        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Personnaliser mes statistiques</span>
-        <button class="close" id="closeStatsPrefsBtn">✕</button>
-      </div>
-      <div class="bilan-body">
-        <div class="bilan-sub" style="margin-bottom:16px;">Choisis ce que tu veux voir sur cet onglet. Ce réglage est propre à cet appareil.</div>
-        <div class="c-toggle-row" style="margin-bottom:9px;">
-          <div class="txt">Répartition par matière</div>
-          <button class="c-switch on" data-pref="repartition"><span class="knob"></span></button>
-        </div>
-        <div class="c-toggle-row" style="margin-bottom:9px;">
-          <div class="txt">Temps par semaine</div>
-          <button class="c-switch on" data-pref="weekly"><span class="knob"></span></button>
-        </div>
-        <div class="c-toggle-row" style="margin-bottom:9px;">
-          <div class="txt">Jours de révision habituels</div>
-          <button class="c-switch on" data-pref="weekday"><span class="knob"></span></button>
-        </div>
-        <div class="c-toggle-row" style="margin-bottom:9px;">
-          <div class="txt">Évolution de la difficulté</div>
-          <button class="c-switch on" data-pref="difficulty"><span class="knob"></span></button>
-        </div>
-        <div class="c-toggle-row" style="margin-bottom:9px;">
-          <div class="txt">Note sur le programme personnalisé</div>
-          <button class="c-switch on" data-pref="note"><span class="knob"></span></button>
-        </div>
-      </div>
-    </div>
-
-    <div id="compareOverlay">
-      <div class="bilan-topbar">
-        <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Classement de la semaine</span>
-        <button class="close" id="closeCompareBtn">✕</button>
-      </div>
-      <div class="bilan-body">
-        <div class="bilan-sub">Temps de révision cumulé sur les 7 derniers jours.</div>
-        <div id="compareList" style="margin-top:14px;"></div>
-
-        <div class="c-sec-label">📋 Ce que tout le monde a révisé</div>
-        <div id="friendActivityList"></div>
-      </div>
-    </div>
-
-    <!-- CHAT -->
-    <div class="c-view" id="view-chat">
-      <div class="c-sec-label">💬 Chat entre amis</div>
-      <div class="c-note-box" style="margin-bottom:12px;">Salon commun visible par tous les profils de l'appli — pas de messages privés.</div>
-      <div id="chatMessages" class="c-chat-messages"></div>
-    </div>
-
-  </div>
-
-  <div class="c-chat-inputbar" id="chatInputBar" style="display:none;">
-    <button id="chatAttachBtn" type="button">📎</button>
-    <input type="file" id="chatFileInput" style="display:none;">
-    <input type="text" id="chatInput" placeholder="Écrire un message...">
-    <button id="chatSendBtn">➤</button>
-  </div>
-
-  <div id="bilanOverlay">
-    <div class="bilan-topbar">
-      <span style="font-family:'Kalam',cursive;font-size:15px;color:var(--ink-soft);">Aperçu du bilan</span>
-      <button class="close" id="closeBilanBtn">✕</button>
-    </div>
-    <div class="bilan-body">
-      <div class="bilan-title">Bilan de révisions<span style="color:var(--margin);">.</span></div>
-      <div class="bilan-sub" id="bilanDateLine"></div>
-
-      <div class="bilan-name-field">
-        <input type="text" id="bilanNameInput" placeholder="Nom de l'élève (optionnel)">
-      </div>
-      <div class="bilan-name-field">
-        <input type="email" id="bilanEmailToInput" placeholder="Email du destinataire (optionnel — parent, prof...)">
-      </div>
-
-      <div class="bilan-period-chips" id="bilanPeriodChips">
-        <button class="c-chip sel" data-p="semaine">Cette semaine</button>
-        <button class="c-chip" data-p="mois">Ce mois</button>
-        <button class="c-chip" data-p="tout">Depuis le début</button>
-      </div>
-
-      <div class="bilan-stats" id="bilanStats"></div>
-
-      <table class="bilan-table" id="bilanTable"></table>
-
-      <div class="bilan-actions">
-        <button class="btn-print" id="bilanPrintBtn">🖨️ Imprimer / Enregistrer en PDF</button>
-        <button class="btn-share" id="bilanEmailBtn">✉️ Envoyer par email</button>
-        <button class="btn-share" id="bilanShareBtn">↗ Partager (Messages, Mail...)</button>
-      </div>
-      <div class="bilan-foot">Généré avec Carnet de révisions</div>
-    </div>
-  </div>
-
-  <div class="c-toast" id="toast"></div>
-
-  <div class="c-nav">
-    <button class="c-nav-btn active" data-view="accueil"><span class="ic">🏠</span><span class="lbl">Accueil</span></button>
-    <button class="c-nav-btn" data-view="ajouter"><span class="ic">✏️</span><span class="lbl">Ajouter</span></button>
-    <button class="c-nav-btn" data-view="minuteur"><span class="ic">⏱</span><span class="run-dot"></span><span class="lbl">Minuteur</span></button>
-    <button class="c-nav-btn" data-view="historique"><span class="ic">📚</span><span class="lbl">Historique</span></button>
-    <button class="c-nav-btn" data-view="planning"><span class="ic">🔁</span><span class="lbl">Planning</span></button>
-    <button class="c-nav-btn" data-view="statistiques"><span class="ic">📊</span><span class="lbl">Stats</span></button>
-    <button class="c-nav-btn" data-view="chat"><span class="ic">💬</span><span class="lbl">Chat</span></button>
-  </div>
+  <footer>Vos opérations restent dans ce navigateur. Seuls le libellé et le montant peuvent être envoyés à l'IA pour suggérer une catégorie, jamais de numéro de compte.</footer>
 </div>
 
-<script type="module">
-  // ====== CONFIGURATION FIREBASE ======
-  // Remplace ce bloc par le firebaseConfig copié depuis la console Firebase
-  // (Paramètres du projet > Vos applications > icône web </>)
-  const firebaseConfig = {
-    apiKey: "AIzaSyCEIfalrtqn8qKW_tyXzILiLEbEp2_AWPg",
-    authDomain: "carnet-de-revision.firebaseapp.com",
-    projectId: "carnet-de-revision",
-    storageBucket: "carnet-de-revision.firebasestorage.app",
-    messagingSenderId: "170414325710",
-    appId: "1:170414325710:web:b47d859c452364fb65759f"
-  };
-  // ======================================
+<script>
+const STORAGE_KEY = "familyBudget_v1";
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function euro(n){ if(!isFinite(n)) n=0; return n.toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2}) + " €"; }
 
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import {
-    getFirestore, collection, addDoc, getDocs, deleteDoc,
-    updateDoc, doc, query, orderBy, where, setDoc, getDoc,
-    onSnapshot, serverTimestamp, limit
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-  import {
-    getAuth, signInAnonymously, onAuthStateChanged, signOut,
-    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-  import {
-    getStorage, ref, uploadBytes, getDownloadURL
-  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-storage.js";
+function defaultCategories(){
+  return [
+    { id: uid(), name: "Alimentation", type: "depense" },
+    { id: uid(), name: "Logement", type: "depense" },
+    { id: uid(), name: "Transport", type: "depense" },
+    { id: uid(), name: "Santé", type: "depense" },
+    { id: uid(), name: "Abonnements", type: "depense" },
+    { id: uid(), name: "Loisirs", type: "depense" },
+    { id: uid(), name: "Salaire", type: "revenu" },
+    { id: uid(), name: "Autres revenus", type: "revenu" },
+    { id: uid(), name: "Divers", type: "depense" },
+  ];
+}
+function defaultState(){
+  return { famTitle: "Comptes de la famille", categories: defaultCategories(), rules: [], transactions: [] };
+}
 
-  const fbApp = initializeApp(firebaseConfig);
-  const db = getFirestore(fbApp);
-  const auth = getAuth(fbApp);
-  const sessionsCol = collection(db, "sessions");
-  const evaluationsCol = collection(db, "evaluations");
-  const messagesCol = collection(db, "messages");
-  const storage = getStorage(fbApp);
-  const ADMIN_EMAIL = 'bouvet.clement@gmail.com';
-  let isAdmin = false;
-  const profilesCol = collection(db, "profiles");
+function loadLocalState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    if(!parsed || typeof parsed !== "object") return defaultState();
+    return Object.assign(defaultState(), parsed);
+  }catch(e){ return defaultState(); }
+}
+function saveLocal(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    famTitle: state.famTitle, categories: state.categories, rules: state.rules, transactions: state.transactions
+  })); }catch(e){}
+}
 
-(function(){
-  const MATIERES_DEFAULT = ["Mathématiques","Français","Physique-Chimie","Histoire-Géographie","Anglais LV1","Allemand LV2","Numérique & Sc. Info","Enseign. scientifique","EMC","Autre"];
-  const COLORS = ["--y","--g","--b","--p","--o"];
-  const DIFF_LABELS = {1:"Facile",2:"Plutôt facile",3:"Moyen",4:"Difficile",5:"Très difficile"};
+let state = loadLocalState();
 
-  // Programme officiel 1ère générale (repères indicatifs, compilés à partir de
-  // plusieurs sources secondaires du programme Eduscol — à recouper avec le
-  // plan de cours réel du professeur, l'ordre et le découpage précis pouvant
-  // varier). La spécialité Mathématiques suit le nouveau programme entrant en
-  // vigueur à la rentrée 2026-2027.
-  const PROGRAMME_1ERE = {
-    "Mathématiques": ["Second degré","Polynômes de degré 2 et 3","Dérivation locale","Dérivation et étude des fonctions","Variations et extremums","Suites arithmétiques et géométriques","Trigonométrie","Produit scalaire dans le plan","Géométrie repérée","Probabilités conditionnelles","Variables aléatoires","Loi de Bernoulli et loi binomiale","Échantillonnage","Algorithmique et Python"],
-    "Physique-Chimie": ["Composition et transformations d'un système chimique","Oxydoréduction et tableau d'avancement","Titrage par suivi colorimétrique","Schéma de Lewis et polarité des molécules","Cohésion et solubilité","Chimie organique : groupes caractéristiques et synthèses","Réactions de combustion","Loi de Coulomb et notion de champ","Description d'un fluide au repos","Mouvement d'un système : lois de Newton","Aspects énergétiques des phénomènes électriques","Aspects énergétiques des phénomènes mécaniques","Ondes mécaniques","La lumière : lentilles minces et modèle du photon","Mesures et incertitudes"],
-    "Numérique & Sc. Info": ["Histoire de l'informatique","Représentation des données : types et valeurs de base","Représentation des données : types construits","Traitement de données en tables","Interactions homme-machine (IHM)","Architectures matérielles et systèmes d'exploitation","Langages et programmation"],
-    "Histoire-Géographie": ["Histoire — L'Europe bouleversée par la Révolution française et l'Empire","Histoire — L'Europe et le monde au XIXe siècle","Histoire — La France dans l'Europe des nationalités (1848-1871)","Histoire — La IIIe République avant 1914","Histoire — La Première Guerre mondiale","Géographie — Comprendre un espace mondialisé","Géographie — Diversification des espaces et acteurs de la production","Géographie — Les espaces du tourisme dans le monde","Géographie — La France en Europe et dans le monde"],
-    "Français": ["La littérature d'idées (XVIe-XVIIIe siècle)","La poésie (XIXe-XXIe siècle)","Le roman et le récit (XVIIIe-XXIe siècle)","Le théâtre (XVIIe-XXIe siècle)"],
-    "Enseign. scientifique": ["Une longue histoire de la matière","Le Soleil, notre source d'énergie","La Terre, un astre singulier","Son et musique, porteurs d'information"],
-    "EMC": ["Le droit et la démocratie","La République et ses valeurs","La citoyenneté et la responsabilité"]
-  };
+/* ---------------- Sync automatique via Google Apps Script ---------------- */
+const SCRIPT_URL_KEY = "familyBudget_scriptUrl";
+let storageMode = "local"; // "google" | "local"
+let scriptUrl = "";
+let persistTimer = null;
+let autoRefreshTimer = null;
 
-  // Annales et sujets zéro du Bac, pour s'entraîner sur de vraies épreuves
-  // (le rappel actif sur des sujets réels est la technique la plus efficace
-  // selon Dunlosky et al., 2013). Le lien Maths pointe vers les sujets zéro
-  // officiels de la nouvelle épreuve anticipée (Eduscol) ; les autres matières
-  // utilisent la banque d'annales générale de l'Étudiant.
-  const ANNALES_LINKS = {
-    "Mathématiques": {label:"Sujets zéro épreuve anticipée + programme (Eduscol)", url:"https://eduscol.education.gouv.fr/5817/programmes-et-ressources-en-mathematiques-voie-gt"},
-    default: {label:"Annales du Bac — toutes matières (l'Étudiant)", url:"https://www.letudiant.fr/bac/annales-du-bac.html"}
-  };
-  function getAnnalesLink(matiere){
-    return ANNALES_LINKS[matiere] || ANNALES_LINKS.default;
+function initStorage(){
+  famTitleInput.value = state.famTitle;
+  renderAll();
+
+  scriptUrl = localStorage.getItem(SCRIPT_URL_KEY) || "";
+  document.getElementById("scriptUrlInput").value = scriptUrl;
+  if(scriptUrl){
+    refreshFromDrive(true);
+    startAutoRefresh();
   }
+}
 
-  // Emploi du temps réel de Kajetan (jours de cours par matière, 1=lundi..7=dimanche).
-  // Anglais LV1 a un créneau supplémentaire le vendredi, uniquement les semaines impaires.
-  const SCHEDULE_BASE = {
-    "Physique-Chimie": [1,4],
-    "Français": [1,3],
-    "Allemand LV2": [1,3],
-    "Numérique & Sc. Info": [1,3],
-    "Mathématiques": [2,5],
-    "Anglais LV1": [2,3],
-    "Histoire-Géographie": [2,3,4],
-    "Enseign. scientifique": [4]
-  };
-
-  function getISOWeekNumber(d){
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = date.getUTCDay() || 7;
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+function showSyncBanner(mode){
+  const el = document.getElementById("syncBanner");
+  if(!el) return;
+  if(mode === "google"){
+    el.className = "sync-banner cloud";
+    el.textContent = "☁️ Synchronisé — les modifications se sauvegardent automatiquement sur votre Google Drive.";
+  }else if(mode === "error"){
+    el.className = "sync-banner error";
+    el.textContent = "⚠️ Problème de connexion à votre script Google — vos modifications récentes peuvent ne pas être enregistrées.";
+  }else{
+    el.className = "sync-banner local";
+    el.textContent = "💻 Non connecté — stockage local à cet appareil/navigateur uniquement.";
   }
+}
 
-  function scheduleDaysFor(matiere, dateForParity){
-    const base = SCHEDULE_BASE[matiere];
-    if(!base) return [];
-    const days = [...base];
-    if(matiere === "Anglais LV1" && getISOWeekNumber(dateForParity) % 2 === 1){
-      days.push(5); // vendredi, semaines impaires seulement
+function connectDrive(){
+  const url = document.getElementById("scriptUrlInput").value.trim();
+  if(!url){ alert("Collez d'abord le lien de votre script Google (se terminant par /exec)."); return; }
+  scriptUrl = url;
+  localStorage.setItem(SCRIPT_URL_KEY, scriptUrl);
+  refreshFromDrive(true);
+  startAutoRefresh();
+}
+
+function disconnectDrive(){
+  scriptUrl = "";
+  localStorage.removeItem(SCRIPT_URL_KEY);
+  storageMode = "local";
+  showSyncBanner("local");
+  document.getElementById("driveStatus").textContent = "Déconnecté. Vos données restent dans ce navigateur.";
+  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+}
+
+function startAutoRefresh(){
+  if(autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(()=>refreshFromDrive(false), 60000);
+}
+
+async function refreshFromDrive(isInitial){
+  if(!scriptUrl) return;
+  try{
+    const res = await fetch(scriptUrl, { method: "GET" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const remote = await res.json();
+    if(remote && typeof remote === "object"){
+      state.famTitle = remote.famTitle || state.famTitle;
+      state.categories = (remote.categories && remote.categories.length) ? remote.categories : state.categories;
+      state.rules = remote.rules || state.rules;
+      state.transactions = remote.transactions || state.transactions;
+      famTitleInput.value = state.famTitle;
+      saveLocal();
+      renderAll();
     }
-    return days;
-  }
-
-  // Prochaine date (à partir de demain) où cette matière a cours, en tenant
-  // compte de l'alternance de semaines pour Anglais LV1.
-  function nextClassDate(matiere, fromISO){
-    if(!SCHEDULE_BASE[matiere]) return null;
-    const from = new Date(fromISO + "T00:00:00");
-    for(let i=1; i<=13; i++){
-      const d = new Date(from);
-      d.setDate(d.getDate() + i);
-      const isoWeekday = d.getDay()===0 ? 7 : d.getDay();
-      if(scheduleDaysFor(matiere, d).includes(isoWeekday)){
-        return toISODate(d);
-      }
+    storageMode = "google";
+    showSyncBanner("google");
+    document.getElementById("driveStatus").textContent = "Connecté. Dernière synchronisation : " + new Date().toLocaleTimeString("fr-FR");
+  }catch(e){
+    console.error(e);
+    if(isInitial){
+      storageMode = "local";
+      document.getElementById("driveStatus").textContent = "Échec de connexion à ce lien. Vérifiez qu'il est correct et que le déploiement autorise l'accès.";
     }
-    return null;
+    showSyncBanner("error");
   }
+}
+function manualRefresh(){
+  if(!scriptUrl){ alert("Connectez-vous d'abord."); return; }
+  refreshFromDrive(false);
+}
 
-  let sessions = [];
-  let evaluations = [];
-  let selectedMatiere = null;
-  let selectedDuree = null;
-  let selectedDiff = null;
-  let revoirOn = true;
-  let histFilter = "toutes";
-  let loaded = false;
-
-  const $ = (sel) => document.querySelector(sel);
-  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-  function matiereColor(name){
-    let h = 0;
-    for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i)) % 997;
-    return COLORS[h % COLORS.length];
-  }
-
-  function fmtDate(d){
-    const dt = new Date(d + "T00:00:00");
-    return dt.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
-  }
-
-  // Convertit un objet Date en chaîne AAAA-MM-JJ en utilisant le calendrier
-  // LOCAL (pas UTC). toISOString() convertit en UTC, ce qui décale la date
-  // d'un jour en arrière dans un fuseau en avance sur l'UTC (France : +1/+2h)
-  // — c'est cette erreur qui faisait apparaître de mauvais jours de cours.
-  function toISODate(d){
-    const y = d.getFullYear();
-    const m = String(d.getMonth()+1).padStart(2,'0');
-    const day = String(d.getDate()).padStart(2,'0');
-    return `${y}-${m}-${day}`;
-  }
-
-  function todayISO(){
-    return toISODate(new Date());
-  }
-
-  function daysDiff(iso){
-    const today = new Date(todayISO()+"T00:00:00");
-    const d = new Date(iso+"T00:00:00");
-    return Math.round((d-today)/86400000);
-  }
-
-  function occurrenceCount(matiere, sujet){
-    if(!matiere) return 0;
-    const s2 = sujet || '';
-    return doneSessions().filter(s => s.matiere===matiere && (s.sujet||'')===s2).length;
-  }
-
-  // Les séances "programmées" (pas encore faites) ne doivent jamais compter
-  // dans les statistiques, l'historique ou l'espacement des révisions —
-  // elles n'ont ni durée ni difficulté réelles.
-  function doneSessions(){
-    return sessions.filter(s => !s.planifiee);
-  }
-
-  // Intervalles croissants inspirés de la recherche sur la pratique distribuée
-  // (Cepeda et al., cité dans Dunlosky et al., 2013) : l'écart optimal entre
-  // deux révisions grandit avec le nombre de répétitions déjà faites.
-  function suggestReviewDate(diff, baseISO, occurrence=0){
-    const baseIntervals = [2, 4, 7, 14, 30]; // jours
-    const idx = Math.min(occurrence, baseIntervals.length-1);
-    let days = baseIntervals[idx];
-    const factor = diff<=2 ? 1.3 : (diff>=4 ? 0.7 : 1.0);
-    days = Math.max(1, Math.round(days*factor));
-    const d = new Date(baseISO + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    return toISODate(d);
-  }
-
-  // Si une évaluation approche pour cette matière, resserre la date suggérée
-  // pour qu'elle tombe avant l'évaluation (idéalement 1 à 2 jours avant),
-  // plutôt que de laisser la révision programmée après le contrôle.
-  function nearestEvalFor(matiere){
-    const relevant = evaluations.filter(e => e.matiere===matiere && e.date >= todayISO());
-    if(!relevant.length) return null;
-    return relevant.sort((a,b)=>a.date.localeCompare(b.date))[0];
-  }
-
-  function adjustForUpcomingEval(matiere, suggestedISO){
-    const ev = nearestEvalFor(matiere);
-    if(!ev) return {date: suggestedISO, adjusted:false, eval:null};
-    if(suggestedISO < ev.date) return {date: suggestedISO, adjusted:false, eval:null};
-    const d = new Date(ev.date + "T00:00:00");
-    d.setDate(d.getDate() - 2);
-    let adjustedISO = toISODate(d);
-    if(adjustedISO < todayISO()) adjustedISO = todayISO();
-    return {date: adjustedISO, adjusted:true, eval: ev};
-  }
-
-  // ---------- FIREBASE (Firestore) ----------
-  async function apiGet(){
+/* Écritures : mettent à jour le cache local `state` puis programment
+   une sauvegarde (Google si connecté, sinon juste ce navigateur). */
+function schedulePersist(){
+  saveLocal();
+  if(storageMode !== "google" || !scriptUrl) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(async ()=>{
     try{
-      const q = query(sessionsCol, where("ownerId", "==", currentUid));
-      const snap = await getDocs(q);
-      sessions = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>b.date.localeCompare(a.date));
-    }catch(e){
-      showToast("Connexion au serveur impossible");
-    }
-  }
-
-  async function apiCreate(obj){
-    try{
-      await addDoc(sessionsCol, {...obj, ownerId: currentUid, ownerName: currentProfileName});
-      await apiGet();
-      return true;
-    }catch(e){
-      showToast("Échec de l'enregistrement");
-      return false;
-    }
-  }
-
-  async function apiPatch(id, patch){
-    try{
-      await updateDoc(doc(db, "sessions", id), patch);
-      await apiGet();
-    }catch(e){
-      showToast("Échec de la mise à jour");
-    }
-  }
-
-  async function apiDelete(id){
-    try{
-      await deleteDoc(doc(db, "sessions", id));
-      await apiGet();
-    }catch(e){
-      showToast("Échec de la suppression");
-    }
-  }
-
-  async function apiDeleteAll(){
-    try{
-      const q = query(sessionsCol, where("ownerId", "==", currentUid));
-      const snap = await getDocs(q);
-      await Promise.all(snap.docs.map(d => deleteDoc(doc(db, "sessions", d.id))));
-      await apiGet();
-    }catch(e){
-      showToast("Échec de la réinitialisation");
-    }
-  }
-
-  async function loadSessions(){
-    await apiGet();
-    loaded = true;
-  }
-
-  // ---------- ÉVALUATIONS (Firestore) ----------
-  async function evalGet(){
-    try{
-      const q = query(evaluationsCol, where("ownerId", "==", currentUid));
-      const snap = await getDocs(q);
-      evaluations = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b)=>a.date.localeCompare(b.date));
-    }catch(e){
-      showToast("Connexion au serveur impossible");
-    }
-  }
-
-  async function evalCreate(obj){
-    try{
-      await addDoc(evaluationsCol, {...obj, ownerId: currentUid, ownerName: currentProfileName});
-      await evalGet();
-      return true;
-    }catch(e){
-      showToast("Échec de l'enregistrement");
-      return false;
-    }
-  }
-
-  async function evalDelete(id){
-    try{
-      await deleteDoc(doc(db, "evaluations", id));
-      await evalGet();
-    }catch(e){
-      showToast("Échec de la suppression");
-    }
-  }
-
-  function showToast(msg){
-    const t = $('#toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 1600);
-  }
-
-  // ---------- NAV ----------
-  function switchView(name){
-    $$('.c-view').forEach(v=>v.classList.remove('active'));
-    $('#view-'+name).classList.add('active');
-    $$('.c-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
-    if(name==='accueil') renderAccueil();
-    if(name==='historique') renderHistorique();
-    if(name==='planning'){ renderPlanning(); renderEvaluations(); }
-    if(name==='statistiques'){ applyStatsPrefs(); renderStatistiques(); }
-    if(name==='ajouter') resetForm();
-    $('#chatInputBar').style.display = (name==='chat') ? 'flex' : 'none';
-    if(name==='chat'){ renderChat(latestMessages); markChatRead(); }
-  }
-  $$('.c-nav-btn').forEach(b=>b.addEventListener('click', ()=>switchView(b.dataset.view)));
-
-  // ---------- FORM ----------
-  function updateMatiereEvalHint(matiere){
-    const hint = $('#matiereEvalHint');
-    const upcoming = evaluations.filter(e => e.matiere===matiere && e.date >= todayISO())
-      .sort((a,b)=>a.date.localeCompare(b.date));
-
-    updateLinkEvalField(upcoming);
-
-    if(!matiere || upcoming.length===0){
-      hint.style.display = 'none';
-      return;
-    }
-    const ev = upcoming[0];
-    const dJ = daysDiff(ev.date);
-    const when = dJ===0 ? "aujourd'hui" : (dJ===1 ? "demain" : `dans ${dJ}j`);
-    hint.style.display = 'block';
-    hint.innerHTML = `<div class="c-matiere-eval-hint">📌 ${ev.type==='dst'?'Devoir sur table':'Évaluation'} prévu(e) ${when} (${fmtDate(ev.date)})${ev.chapitre?' — '+escapeHtml(ev.chapitre):''}</div>`;
-  }
-
-  function updateLinkEvalField(upcomingEvals){
-    const field = $('#linkEvalField');
-    const select = $('#linkEvalSelect');
-    if(!upcomingEvals || upcomingEvals.length===0){
-      field.style.display = 'none';
-      select.innerHTML = '';
-      return;
-    }
-    field.style.display = 'block';
-    select.innerHTML = '<option value="">— Aucune —</option>' +
-      upcomingEvals.map(ev=>{
-        const label = `${ev.type==='dst'?'Devoir sur table':'Évaluation'} — ${ev.chapitre || 'programme complet'} (${fmtDate(ev.date)})`;
-        return `<option value="${ev.id}">${escapeHtml(label)}</option>`;
-      }).join('');
-    // Sélectionne automatiquement la plus proche, mais reste modifiable.
-    select.value = upcomingEvals[0].id;
-    select.onchange = ()=>{
-      const chosen = upcomingEvals.find(ev=>ev.id===select.value);
-      if(chosen && chosen.chapitre && !$('#sujetInput').value.trim()){
-        $('#sujetInput').value = chosen.chapitre;
-      }
-    };
-    // Pré-remplit le sujet si vide, dès l'ouverture.
-    if(upcomingEvals[0].chapitre && !$('#sujetInput').value.trim()){
-      $('#sujetInput').value = upcomingEvals[0].chapitre;
-    }
-  }
-
-  function buildMatiereChips(){
-    const wrap = $('#matiereChips');
-    wrap.innerHTML = '';
-    MATIERES_DEFAULT.forEach(m=>{
-      const chip = document.createElement('button');
-      chip.className = 'c-chip';
-      chip.type='button';
-      chip.textContent = m;
-      chip.addEventListener('click', ()=>{
-        selectedMatiere = m;
-        $('#matiereCustom').value = '';
-        $$('.c-chip').forEach(c=>c.classList.remove('sel'));
-        chip.classList.add('sel');
-        updateMatiereEvalHint(m);
-      });
-      wrap.appendChild(chip);
-    });
-  }
-  buildMatiereChips();
-
-  $('#matiereCustom').addEventListener('input', (e)=>{
-    if(e.target.value.trim()){
-      selectedMatiere = e.target.value.trim();
-      $$('.c-chip').forEach(c=>c.classList.remove('sel'));
-    }
-  });
-
-  $('#dureeQuick').addEventListener('click', (e)=>{
-    const btn = e.target.closest('button');
-    if(!btn) return;
-    selectedDuree = parseInt(btn.dataset.v,10);
-    $('#dureeInput').value = selectedDuree;
-    $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', b===btn));
-  });
-  $('#dureeInput').addEventListener('input', ()=>{
-    $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
-  });
-
-  $('#sujetInput').addEventListener('input', updateRevoirSub);
-
-  $('#diffRow').addEventListener('click', (e)=>{
-    const btn = e.target.closest('.c-diff-btn');
-    if(!btn) return;
-    selectedDiff = parseInt(btn.dataset.v,10);
-    $$('.c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
-    $('#diffCaption').textContent = DIFF_LABELS[selectedDiff];
-    updateRevoirSub();
-  });
-
-  $('#revoirSwitch').addEventListener('click', ()=>{
-    revoirOn = !revoirOn;
-    $('#revoirSwitch').classList.toggle('on', revoirOn);
-    $('#revoirDateWrap').style.display = revoirOn ? 'block' : 'none';
-    updateRevoirSub();
-  });
-
-  let revoirDateManual = false;
-  $('#revoirDateInput').addEventListener('input', ()=>{ revoirDateManual = true; });
-
-  function updateRevoirSub(){
-    if(!revoirOn){ $('#revoirSub').textContent = "Désactivé"; return; }
-    const diff = selectedDiff || 3;
-    const baseISO = $('#dateInput').value || todayISO();
-    const sujetVal = $('#sujetInput').value.trim();
-    const occ = occurrenceCount(selectedMatiere, sujetVal);
-    let dt = suggestReviewDate(diff, baseISO, occ);
-    const adj = adjustForUpcomingEval(selectedMatiere, dt);
-    dt = adj.date;
-    $('#revoirSub').textContent = adj.adjusted
-      ? `Resserré : ${fmtDate(dt)} (avant ton ${adj.eval.type==='dst'?'devoir sur table':'évaluation'} du ${fmtDate(adj.eval.date)})`
-      : "Suggestion : " + fmtDate(dt);
-    if(!revoirDateManual){
-      $('#revoirDateInput').value = dt;
-    }
-  }
-  $('#dateInput').addEventListener('change', updateRevoirSub);
-
-  let planMode = false;
-
-  function updatePlanModeUI(){
-    $('#planModeSwitch').classList.toggle('on', planMode);
-    $('#dureeDiffFields').style.display = planMode ? 'none' : 'block';
-    $('#revoirFieldWrap').style.display = planMode ? 'none' : 'block';
-    $('#dateFieldLabel').textContent = planMode ? 'Date prévue pour la révision' : 'Date';
-    $('#saveBtn').textContent = planMode ? 'Programmer la révision' : 'Enregistrer la séance';
-    if(planMode){
-      // Une révision programmée doit logiquement tomber aujourd'hui ou plus tard.
-      if($('#dateInput').value < todayISO()) $('#dateInput').value = todayISO();
-    }
-  }
-
-  $('#planModeSwitch').addEventListener('click', ()=>{
-    planMode = !planMode;
-    updatePlanModeUI();
-  });
-
-  function resetForm(){
-    selectedMatiere = null;
-    selectedDuree = null;
-    selectedDiff = null;
-    revoirOn = true;
-    revoirDateManual = false;
-    planMode = false;
-    $('#matiereCustom').value = '';
-    $('#sujetInput').value = '';
-    $('#dureeInput').value = '';
-    $('#notesInput').value = '';
-    $('#dateInput').value = todayISO();
-    $$('.c-chip').forEach(c=>c.classList.remove('sel'));
-    $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
-    $$('.c-diff-btn').forEach(b=>b.classList.remove('sel'));
-    $('#diffCaption').textContent = "Choisis un niveau";
-    $('#revoirSwitch').classList.add('on');
-    $('#revoirDateWrap').style.display = 'block';
-    $('#matiereEvalHint').style.display = 'none';
-    $('#linkEvalField').style.display = 'none';
-    $('#linkEvalSelect').innerHTML = '';
-    updatePlanModeUI();
-    updateRevoirSub();
-  }
-
-  $('#saveBtn').addEventListener('click', async ()=>{
-    if(!selectedMatiere){ showToast("Choisis une matière"); return; }
-    const sujet = $('#sujetInput').value.trim();
-    const notes = $('#notesInput').value.trim();
-    const evalId = $('#linkEvalSelect').value || null;
-
-    if(planMode){
-      const plannedDate = $('#dateInput').value || todayISO();
-      const session = {
-        matiere: selectedMatiere,
-        sujet: sujet,
-        date: todayISO(),
-        duree: 0,
-        difficulte: null,
-        notes: notes,
-        revoirDate: plannedDate,
-        revu: false,
-        planifiee: true,
-        evalId: evalId
-      };
-      const ok = await apiCreate(session);
-      if(ok){
-        showToast("Révision programmée ✓");
-        switchView('planning');
-      }
-      return;
-    }
-
-    const date = $('#dateInput').value || todayISO();
-    const duree = parseInt($('#dureeInput').value,10);
-    if(!duree || duree<=0){ showToast("Indique une durée"); return; }
-    if(!selectedDiff){ showToast("Choisis une difficulté"); return; }
-
-    const session = {
-      matiere: selectedMatiere,
-      sujet: sujet,
-      date: date,
-      duree: duree,
-      difficulte: selectedDiff,
-      notes: notes,
-      revoirDate: revoirOn ? ($('#revoirDateInput').value || adjustForUpcomingEval(selectedMatiere, suggestReviewDate(selectedDiff, date, occurrenceCount(selectedMatiere, sujet))).date) : null,
-      revu: false,
-      planifiee: false,
-      evalId: evalId
-    };
-    const ok = await apiCreate(session);
-    if(ok){
-      showToast("Séance enregistrée ✓");
-      switchView('accueil');
-    }
-  });
-
-  // ---------- ACCUEIL ----------
-  // ---------- SUGGESTIONS DU JOUR ----------
-  // Combine les révisions en retard/dues et les évaluations qui approchent
-  // pour proposer un ordre de priorité concret, avec une durée indicative.
-  // Ceci rend visible ce que fait l'algorithme (espacement + ajustement par
-  // évaluation) au lieu de le laisser caché dans le formulaire.
-  function computeDailySuggestions(){
-    const map = {};
-    const today = todayISO();
-
-    sessions.filter(s=>s.revoirDate && !s.revu).forEach(s=>{
-      const dJ = daysDiff(s.revoirDate);
-      if(dJ <= 1){
-        const urgency = dJ < 0 ? 100 + Math.abs(dJ)*5 : (dJ===0 ? 80 : 60);
-        if(!map[s.matiere]) map[s.matiere] = {matiere:s.matiere, score:0, reasons:[], base:20};
-        map[s.matiere].score = Math.max(map[s.matiere].score, urgency);
-        map[s.matiere].reasons.push(dJ<0 ? `révision en retard de ${Math.abs(dJ)}j` : (dJ===0 ? 'révision prévue aujourd\'hui' : 'révision prévue demain'));
-      }
-    });
-
-    evaluations.filter(e=>e.date >= today).forEach(e=>{
-      const dJ = daysDiff(e.date);
-      if(dJ <= 7){
-        const urgency = Math.max(15, 90 - dJ*10);
-        if(!map[e.matiere]) map[e.matiere] = {matiere:e.matiere, score:0, reasons:[], base:20};
-        map[e.matiere].score = Math.max(map[e.matiere].score, urgency);
-        map[e.matiere].reasons.push(`${e.type==='dst'?'devoir sur table':'évaluation'} ${dJ===0 ? "aujourd'hui" : (dJ===1?'demain':'dans '+dJ+'j')}`);
-        map[e.matiere].base = Math.max(map[e.matiere].base, dJ<=3 ? 35 : 25);
-      }
-    });
-
-    // Emploi du temps réel : un cours demain est une bonne occasion de réviser ce soir.
-    Object.keys(SCHEDULE_BASE).forEach(matiere=>{
-      const next = nextClassDate(matiere, today);
-      if(!next) return;
-      const dJ = daysDiff(next);
-      if(dJ === 1){
-        if(!map[matiere]) map[matiere] = {matiere, score:0, reasons:[], base:20};
-        map[matiere].score = Math.max(map[matiere].score, 55);
-        map[matiere].reasons.push('cours demain — à revoir ce soir');
-      }
-    });
-
-    return Object.values(map).sort((a,b)=>b.score-a.score).slice(0,3);
-  }
-
-  function renderSuggestions(){
-    const sugg = computeDailySuggestions();
-    const wrap = $('#listeSuggestions');
-    wrap.innerHTML = '';
-    if(sugg.length===0){
-      $('#suggsecLabel').style.display = 'none';
-      return;
-    }
-    $('#suggsecLabel').style.display = 'block';
-    sugg.forEach(s=>{
-      const card = document.createElement('div');
-      card.className = 'c-sugg-card';
-      card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
-      card.innerHTML = `
-        <div class="top-row">
-          <span class="matiere">${escapeHtml(s.matiere)}</span>
-          <span class="duree">~${s.base} min</span>
-        </div>
-        <div class="reasons">${escapeHtml(s.reasons.join(' · '))}</div>
-        <button class="go-btn" data-m="${escapeHtml(s.matiere)}">Réviser maintenant →</button>
-      `;
-      card.querySelector('.go-btn').addEventListener('click', ()=>{
-        switchView('ajouter');
-        selectedMatiere = s.matiere;
-        $$('#matiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===s.matiere));
-        $('#matiereCustom').value = '';
-        updateMatiereEvalHint(s.matiere);
-        $('#dureeInput').value = s.base;
-        $('#dureeInput').dispatchEvent(new Event('input'));
-      });
-      wrap.appendChild(card);
-    });
-  }
-
-  function renderAccueil(){
-    const now = new Date();
-    const weekAgoISO = (()=>{const d=new Date();d.setDate(d.getDate()-6);return toISODate(d);})();
-    const weekSessions = doneSessions().filter(s=>s.date >= weekAgoISO && s.date <= todayISO());
-    const totalMin = weekSessions.reduce((a,s)=>a+s.duree,0);
-    $('#statTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
-    $('#statSessions').textContent = weekSessions.length;
-
-    renderSuggestions();
-
-    // Évaluations qui approchent (10 prochains jours) — priorité de révision
-    const prioEvals = evaluations.filter(e => e.date >= todayISO() && daysDiff(e.date) <= 10)
-      .sort((a,b)=>a.date.localeCompare(b.date));
-    const prioWrap = $('#listePrioEval');
-    prioWrap.innerHTML = '';
-    if(prioEvals.length === 0){
-      $('#priosecLabel').style.display = 'none';
-    } else {
-      $('#priosecLabel').style.display = 'block';
-      prioEvals.slice(0,3).forEach(ev=>{
-        const dJ = daysDiff(ev.date);
-        const when = dJ===0 ? "aujourd'hui" : (dJ===1 ? "demain" : `dans ${dJ}j`);
-        const card = document.createElement('div');
-        card.className = 'c-eval-card soon';
-        card.innerHTML = `
-          <div class="top-row">
-            <div>
-              <span class="c-eval-type-badge ${ev.type==='dst'?'dst':''}">${ev.type==='dst' ? '📚 Devoir sur table' : '🔍 Évaluation'}</span>
-              <div class="matiere">${escapeHtml(ev.matiere)}${ev.chapitre ? ' — '+escapeHtml(ev.chapitre) : ''}</div>
-            </div>
-          </div>
-          <div class="meta"><span>📅 ${when}, le ${fmtDate(ev.date)} — pense à programmer une révision</span></div>
-          <a href="${getAnnalesLink(ev.matiere).url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;font-size:11px;color:var(--b);text-decoration:none;">📖 ${escapeHtml(getAnnalesLink(ev.matiere).label)} →</a>
-        `;
-        prioWrap.appendChild(card);
-      });
-    }
-
-    const upcoming = sessions.filter(s=>s.revoirDate && !s.revu).sort((a,b)=>a.revoirDate.localeCompare(b.revoirDate));
-    const dueSoon = upcoming.filter(s=>daysDiff(s.revoirDate) <= 2);
-    $('#statARevoir').textContent = upcoming.length;
-
-    $('#revoirCount').textContent = dueSoon.length ? '('+dueSoon.length+')' : '';
-    const listARevoir = $('#listeARevoir');
-    listARevoir.innerHTML = '';
-    if(dueSoon.length === 0){
-      listARevoir.innerHTML = '<div class="c-empty">Rien à revoir pour l\'instant, bien joué 👍</div>';
-    } else {
-      dueSoon.slice(0,4).forEach(s=>listARevoir.appendChild(reviewCard(s)));
-    }
-
-    const recent = doneSessions().slice(0,4);
-    $('#recentCount').textContent = doneSessions().length ? '('+doneSessions().length+')' : '';
-    const listRecentes = $('#listeRecentes');
-    listRecentes.innerHTML = '';
-    if(recent.length === 0){
-      listRecentes.innerHTML = '<div class="c-empty">Aucune séance enregistrée.<br>Ajoute ta première révision !</div>';
-    } else {
-      recent.forEach(s=>listRecentes.appendChild(sessionCard(s)));
-    }
-  }
-
-  $('#resetBtn').addEventListener('click', async ()=>{
-    if(confirm("Supprimer définitivement toutes les séances enregistrées sur le serveur ?")){
-      await apiDeleteAll();
-      renderAccueil();
-      showToast("Données réinitialisées");
-    }
-  });
-
-  // ---------- CARDS ----------
-  function diffDots(diff){
-    let html = '<span class="diff-dots">';
-    for(let i=1;i<=5;i++) html += '<i class="'+(i<=diff?'on':'')+'"></i>';
-    html += '</span>';
-    return html;
-  }
-
-  function linkedEvalLabel(evalId){
-    if(!evalId) return null;
-    const ev = evaluations.find(e=>e.id===evalId);
-    if(!ev) return null;
-    return `${ev.type==='dst'?'Devoir sur table':'Évaluation'} du ${fmtDate(ev.date)}`;
-  }
-
-  function sessionCard(s){
-    const card = document.createElement('div');
-    card.className = 'c-card';
-    card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
-    card.innerHTML = `
-      <div class="top-row">
-        <div>
-          <div class="matiere">${escapeHtml(s.matiere)}</div>
-          ${s.sujet ? `<div class="sujet">${escapeHtml(s.sujet)}</div>` : ''}
-        </div>
-        <button class="del" data-id="${s.id}" title="Supprimer">✕</button>
-      </div>
-      <div class="meta">
-        <span>📅 ${fmtDate(s.date)}</span>
-        <span>⏱ ${s.duree} min</span>
-        <span>${diffDots(s.difficulte)}</span>
-      </div>
-      ${s.notes ? `<div class="notes">${escapeHtml(s.notes)}</div>` : ''}
-      ${s.revoirDate && !s.revu ? `<div class="review-pill ${daysDiff(s.revoirDate)<0?'late':''}">🔁 À revoir le ${fmtDate(s.revoirDate)}</div>` : ''}
-      ${linkedEvalLabel(s.evalId) ? `<div class="review-pill">🔗 ${linkedEvalLabel(s.evalId)}</div>` : ''}
-    `;
-    card.querySelector('.del').addEventListener('click', async ()=>{
-      await apiDelete(s.id);
-      renderAccueil(); renderHistorique(); renderPlanning();
-    });
-    return card;
-  }
-
-  function reviewCard(s){
-    const card = document.createElement('div');
-    const diffJ = daysDiff(s.revoirDate);
-    const late = diffJ < 0;
-    card.className = 'c-card' + (late ? ' overdue' : '');
-    card.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
-    let when = late ? `En retard de ${Math.abs(diffJ)}j` : (diffJ===0 ? "Aujourd'hui" : (diffJ===1 ? "Demain" : `Dans ${diffJ}j`));
-    card.innerHTML = `
-      <div class="top-row">
-        <div>
-          ${s.planifiee ? '<span class="c-eval-type-badge">🗓️ Programmée</span><br>' : ''}
-          <div class="matiere">${escapeHtml(s.matiere)}</div>
-          ${s.sujet ? `<div class="sujet">${escapeHtml(s.sujet)}</div>` : ''}
-        </div>
-      </div>
-      <div class="meta">
-        <span>📅 ${fmtDate(s.revoirDate)} · ${when}</span>
-      </div>
-      <button class="done-btn" data-id="${s.id}">✓ Révisé</button>
-    `;
-    card.querySelector('.done-btn').addEventListener('click', async ()=>{
-      await apiPatch(s.id, {revu:true});
-      renderAccueil(); renderPlanning();
-      showToast("Marqué comme révisé ✓");
-    });
-    return card;
-  }
-
-  function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
-  }
-
-  // ---------- HISTORIQUE ----------
-  function renderHistorique(){
-    $('#histCount').textContent = sessions.length ? '('+sessions.length+')' : '';
-    const matieresUsed = ["toutes", ...Array.from(new Set(sessions.map(s=>s.matiere)))];
-    const filterBar = $('#histFilters');
-    filterBar.innerHTML = '';
-    matieresUsed.forEach(m=>{
-      const chip = document.createElement('button');
-      chip.className = 'c-chip' + (histFilter===m ? ' sel' : '');
-      chip.textContent = m === 'toutes' ? 'Toutes' : m;
-      chip.style.whiteSpace = 'nowrap';
-      chip.addEventListener('click', ()=>{ histFilter = m; renderHistorique(); });
-      filterBar.appendChild(chip);
-    });
-
-    const list = $('#histList');
-    list.innerHTML = '';
-    const filtered = histFilter==='toutes' ? doneSessions() : doneSessions().filter(s=>s.matiere===histFilter);
-    if(filtered.length===0){
-      list.innerHTML = '<div class="c-empty">Aucune séance ici.</div>';
-      return;
-    }
-    filtered.forEach(s=>list.appendChild(sessionCard(s)));
-  }
-
-  // ---------- PLANNING ----------
-  function renderPlanning(){
-    const upcoming = sessions.filter(s=>s.revoirDate && !s.revu).sort((a,b)=>a.revoirDate.localeCompare(b.revoirDate));
-    $('#planCount').textContent = upcoming.length ? '('+upcoming.length+')' : '';
-    const list = $('#planList');
-    list.innerHTML = '';
-    if(upcoming.length===0){
-      list.innerHTML = '<div class="c-empty">Aucune révision programmée.<br>Active "Programmer une révision" en ajoutant une séance.</div>';
-      return;
-    }
-    upcoming.forEach(s=>list.appendChild(reviewCard(s)));
-  }
-
-  // ---------- ÉVALUATIONS (UI) ----------
-  let evalType = null;
-  let evalMatiere = null;
-
-  function buildEvalMatiereChips(){
-    const wrap = $('#evalMatiereChips');
-    wrap.innerHTML = '';
-    MATIERES_DEFAULT.forEach(m=>{
-      const chip = document.createElement('button');
-      chip.className = 'c-chip';
-      chip.type = 'button';
-      chip.textContent = m;
-      chip.addEventListener('click', ()=>{
-        evalMatiere = m;
-        $$('#evalMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
-        chip.classList.add('sel');
-        updateEvalChapitreField();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-  buildEvalMatiereChips();
-
-  $('#evalTypeRow').addEventListener('click', (e)=>{
-    const btn = e.target.closest('.c-diff-btn');
-    if(!btn) return;
-    evalType = btn.dataset.v;
-    $$('#evalTypeRow .c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
-    updateEvalChapitreField();
-  });
-
-  function updateEvalChapitreField(){
-    const field = $('#evalChapitreField');
-    const select = $('#evalChapitreSelect');
-    const customWrap = $('#evalChapitreCustomWrap');
-    // Un DST porte sur tout le programme : le champ chapitre n'a pas de sens.
-    if(evalType !== 'evaluation' || !evalMatiere){
-      field.style.display = 'none';
-      return;
-    }
-    const chapitres = PROGRAMME_1ERE[evalMatiere];
-    if(!chapitres){
-      // Pas de programme officiel disponible pour cette matière (langues, EMC...) : saisie libre.
-      field.style.display = 'block';
-      select.style.display = 'none';
-      customWrap.style.display = 'block';
-      return;
-    }
-    field.style.display = 'block';
-    select.style.display = 'block';
-    select.innerHTML = '<option value="">— Choisir un chapitre —</option>' +
-      chapitres.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
-      '<option value="__autre__">Autre (préciser)</option>';
-    select.onchange = ()=>{
-      customWrap.style.display = select.value==='__autre__' ? 'block' : 'none';
-    };
-    customWrap.style.display = 'none';
-  }
-
-  $('#openEvalBtn').addEventListener('click', ()=>{
-    evalType = null;
-    evalMatiere = null;
-    $$('#evalTypeRow .c-diff-btn').forEach(b=>b.classList.remove('sel'));
-    $$('#evalMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
-    $('#evalChapitreField').style.display = 'none';
-    $('#evalChapitreCustom').value = '';
-    $('#evalNotesInput').value = '';
-    const d = new Date(); d.setDate(d.getDate()+7);
-    $('#evalDateInput').value = toISODate(d);
-    $('#evalOverlay').classList.add('show');
-  });
-  $('#closeEvalBtn').addEventListener('click', ()=>{
-    $('#evalOverlay').classList.remove('show');
-  });
-
-  $('#evalSaveBtn').addEventListener('click', async ()=>{
-    if(!evalType){ showToast("Choisis un type d'évaluation"); return; }
-    if(!evalMatiere){ showToast("Choisis une matière"); return; }
-    const date = $('#evalDateInput').value;
-    if(!date){ showToast("Choisis une date"); return; }
-
-    let chapitre = '';
-    if(evalType==='evaluation'){
-      const select = $('#evalChapitreSelect');
-      if(select.style.display !== 'none'){
-        chapitre = select.value==='__autre__' ? $('#evalChapitreCustom').value.trim() : select.value;
-      } else {
-        chapitre = $('#evalChapitreCustom').value.trim();
-      }
-    }
-
-    const evalObj = {
-      type: evalType,
-      matiere: evalMatiere,
-      chapitre: chapitre,
-      date: date,
-      notes: $('#evalNotesInput').value.trim()
-    };
-    const ok = await evalCreate(evalObj);
-    if(ok){
-      showToast("Évaluation enregistrée ✓");
-      $('#evalOverlay').classList.remove('show');
-      renderEvaluations();
-    }
-  });
-
-  function renderEvaluations(){
-    const list = $('#evalList');
-    list.innerHTML = '';
-    const upcoming = evaluations.filter(e=>e.date >= todayISO()).sort((a,b)=>a.date.localeCompare(b.date));
-    $('#evalCount').textContent = upcoming.length ? '('+upcoming.length+')' : '';
-    if(upcoming.length===0){
-      list.innerHTML = '<div class="c-empty">Aucune évaluation programmée.</div>';
-      return;
-    }
-    upcoming.forEach(ev=>{
-      const dJ = daysDiff(ev.date);
-      const card = document.createElement('div');
-      card.className = 'c-eval-card' + (dJ<=3 ? ' soon' : '');
-      const when = dJ===0 ? "Aujourd'hui" : (dJ===1 ? "Demain" : `Dans ${dJ}j`);
-      card.innerHTML = `
-        <div class="top-row">
-          <div>
-            <span class="c-eval-type-badge ${ev.type==='dst'?'dst':''}">${ev.type==='dst' ? '📚 Devoir sur table' : '🔍 Évaluation'}</span>
-            <div class="matiere">${escapeHtml(ev.matiere)}</div>
-            ${ev.chapitre ? `<div class="chapitre">${escapeHtml(ev.chapitre)}</div>` : ''}
-          </div>
-          <button class="del" data-id="${ev.id}" title="Supprimer">✕</button>
-        </div>
-        <div class="meta"><span>📅 ${fmtDate(ev.date)} · ${when}</span></div>
-        ${ev.notes ? `<div class="notes">${escapeHtml(ev.notes)}</div>` : ''}
-        <a href="${getAnnalesLink(ev.matiere).url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;font-size:11px;color:var(--b);text-decoration:none;">📖 ${escapeHtml(getAnnalesLink(ev.matiere).label)} →</a>
-      `;
-      card.querySelector('.del').addEventListener('click', async ()=>{
-        await evalDelete(ev.id);
-        renderEvaluations();
-      });
-      list.appendChild(card);
-    });
-  }
-
-  // ---------- BILAN / EXPORT ----------
-  let bilanPeriod = 'semaine';
-
-  function filterByPeriod(period){
-    if(period==='tout') return doneSessions();
-    const days = period==='semaine' ? 6 : 29;
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    const fromISO = toISODate(d);
-    return doneSessions().filter(s=>s.date >= fromISO && s.date <= todayISO());
-  }
-
-  function periodLabel(period){
-    return period==='semaine' ? 'Cette semaine' : (period==='mois' ? 'Ce mois-ci (30 derniers jours)' : 'Depuis le début du suivi');
-  }
-
-  function renderBilan(){
-    const filtered = filterByPeriod(bilanPeriod);
-    const totalMin = filtered.reduce((a,s)=>a+s.duree,0);
-    const moyDiff = filtered.length ? (filtered.reduce((a,s)=>a+s.difficulte,0)/filtered.length) : 0;
-
-    $('#bilanDateLine').textContent = "Généré le " + new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
-
-    $('#bilanStats').innerHTML = `
-      <div class="bilan-stat"><span class="num">${totalMin>=60?(Math.round(totalMin/6)/10)+'h':totalMin+'min'}</span><span class="lbl">temps total</span></div>
-      <div class="bilan-stat"><span class="num">${filtered.length}</span><span class="lbl">séances</span></div>
-      <div class="bilan-stat"><span class="num">${filtered.length?moyDiff.toFixed(1):'-'}</span><span class="lbl">difficulté moy.</span></div>
-    `;
-
-    const byMatiere = {};
-    filtered.forEach(s=>{
-      if(!byMatiere[s.matiere]) byMatiere[s.matiere] = {temps:0,count:0,diffSum:0};
-      byMatiere[s.matiere].temps += s.duree;
-      byMatiere[s.matiere].count += 1;
-      byMatiere[s.matiere].diffSum += s.difficulte;
-    });
-    const rows = Object.keys(byMatiere).map(m=>({
-      matiere:m, temps:byMatiere[m].temps, count:byMatiere[m].count,
-      diffMoy: byMatiere[m].diffSum/byMatiere[m].count
-    })).sort((a,b)=>b.temps-a.temps);
-
-    const table = $('#bilanTable');
-    if(rows.length===0){
-      table.innerHTML = '<tr><td style="padding:16px 0;color:var(--ink-faint);font-style:italic;">Aucune séance sur cette période.</td></tr>';
-    } else {
-      let html = '<tr><th>Matière</th><th class="tnum">Temps</th><th class="tnum">Séances</th><th class="tnum">Difficulté</th></tr>';
-      rows.forEach(r=>{
-        const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
-        html += `<tr><td>${escapeHtml(r.matiere)}</td><td class="tnum">${t}</td><td class="tnum">${r.count}</td><td class="tnum">${r.diffMoy.toFixed(1)}/5</td></tr>`;
-      });
-      table.innerHTML = html;
-    }
-    return {filtered, totalMin, moyDiff, rows};
-  }
-
-  function bilanShareText(){
-    const {filtered, totalMin, moyDiff, rows} = renderBilan();
-    const name = $('#bilanNameInput').value.trim();
-    let txt = `Bilan de révisions${name ? ' — ' + name : ''}\n`;
-    txt += `${periodLabel(bilanPeriod)}\n\n`;
-    txt += `Temps total : ${totalMin>=60?(Math.round(totalMin/6)/10)+'h':totalMin+'min'}\n`;
-    txt += `Séances : ${filtered.length}\n`;
-    txt += `Difficulté moyenne : ${filtered.length?moyDiff.toFixed(1)+'/5':'-'}\n\n`;
-    rows.forEach(r=>{
-      const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
-      txt += `- ${r.matiere} : ${t}, ${r.count} séance(s), difficulté ${r.diffMoy.toFixed(1)}/5\n`;
-    });
-    return txt;
-  }
-
-  $('#openBilanBtn').addEventListener('click', ()=>{
-    $('#bilanOverlay').classList.add('show');
-    renderBilan();
-  });
-  $('#closeBilanBtn').addEventListener('click', ()=>{
-    $('#bilanOverlay').classList.remove('show');
-  });
-  $('#bilanPeriodChips').addEventListener('click', (e)=>{
-    const btn = e.target.closest('.c-chip');
-    if(!btn) return;
-    bilanPeriod = btn.dataset.p;
-    $$('#bilanPeriodChips .c-chip').forEach(c=>c.classList.toggle('sel', c===btn));
-    renderBilan();
-  });
-  $('#bilanNameInput').addEventListener('input', renderBilan);
-
-  $('#bilanPrintBtn').addEventListener('click', ()=>{
-    try{ window.print(); }catch(e){ showToast("Impression indisponible ici"); }
-  });
-
-  $('#bilanEmailBtn').addEventListener('click', ()=>{
-    const text = bilanShareText();
-    const name = $('#bilanNameInput').value.trim();
-    const to = $('#bilanEmailToInput').value.trim();
-    const subject = "Bilan de révisions" + (name ? " — " + name : "");
-    const mailtoUrl = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
-    window.location.href = mailtoUrl;
-  });
-
-  $('#bilanShareBtn').addEventListener('click', async ()=>{
-    const text = bilanShareText();
-    const name = $('#bilanNameInput').value.trim();
-    if(navigator.share){
-      try{
-        await navigator.share({ title: "Bilan de révisions" + (name?" — "+name:""), text: text });
-        return;
-      }catch(e){ /* utilisateur a annulé ou API indisponible, on tente le repli */ }
-    }
-    try{
-      const blob = new Blob([text], {type:'text/plain'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'bilan-revisions.txt';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("Fichier téléchargé");
-    }catch(e){
-      showToast("Partage indisponible");
-    }
-  });
-
-  // ---------- GRAPHIQUES (SVG fait main) ----------
-  function fmtMinShort(v){
-    return v>=60 ? (Math.round(v/6)/10)+"h" : v+"m";
-  }
-
-  function mondayOf(dateISO){
-    const d = new Date(dateISO + "T00:00:00");
-    const day = d.getDay();
-    const diff = (day===0 ? -6 : 1-day);
-    d.setDate(d.getDate() + diff);
-    return toISODate(d);
-  }
-
-  function lastNWeeksMondays(n){
-    const arr = [];
-    const todayMonday = mondayOf(todayISO());
-    for(let i=n-1;i>=0;i--){
-      const d = new Date(todayMonday + "T00:00:00");
-      d.setDate(d.getDate() - i*7);
-      arr.push(toISODate(d));
-    }
-    return arr;
-  }
-
-  function fmtWeekLabel(mondayISO){
-    const d = new Date(mondayISO + "T00:00:00");
-    return d.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
-  }
-
-  function drawBarChart(containerSel, data, opts={}){
-    const el = $(containerSel);
-    if(!data.length || data.every(d=>!d.value)){
-      el.innerHTML = '<div class="c-chart-empty-note">Pas encore assez de données pour ce graphique.</div>';
-      return;
-    }
-    const W=340, H=140, padL=6, padR=6, padT=18, padB=22;
-    const chartW = W-padL-padR, chartH = H-padT-padB;
-    const maxV = Math.max(1, ...data.map(d=>d.value));
-    const n = data.length;
-    const gap = chartW/n;
-    const bw = Math.min(28, gap*0.62);
-    let bars='', labels='';
-    data.forEach((d,i)=>{
-      const x = padL + i*gap + (gap-bw)/2;
-      const h = (d.value/maxV)*chartH;
-      const y = padT + chartH - h;
-      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" rx="3" fill="${opts.color||'var(--b)'}"/>`;
-      if(d.value>0){
-        bars += `<text x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" font-size="9" text-anchor="middle" fill="var(--ink-soft)" font-family="Inter, sans-serif">${fmtMinShort(d.value)}</text>`;
-      }
-      labels += `<text x="${(x+bw/2).toFixed(1)}" y="${H-6}" font-size="9.5" text-anchor="middle" fill="var(--ink-faint)" font-family="Inter, sans-serif">${escapeHtml(d.label)}</text>`;
-    });
-    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      <line x1="${padL}" y1="${padT+chartH}" x2="${W-padR}" y2="${padT+chartH}" stroke="var(--paper-line)" stroke-width="1"/>
-      ${bars}${labels}
-    </svg>`;
-  }
-
-  function drawLineChart(containerSel, data, opts={}){
-    const el = $(containerSel);
-    const valid = data.filter(d=>d.value!==null);
-    if(valid.length===0){
-      el.innerHTML = '<div class="c-chart-empty-note">Pas encore assez de données pour ce graphique.</div>';
-      return;
-    }
-    const W=340, H=140, padL=20, padR=10, padT=14, padB=22;
-    const chartW = W-padL-padR, chartH = H-padT-padB;
-    const minV = opts.min!==undefined ? opts.min : 0;
-    const maxV = opts.max!==undefined ? opts.max : Math.max(...valid.map(d=>d.value));
-    const n = data.length;
-    const stepX = n>1 ? chartW/(n-1) : 0;
-
-    const points = data.map((d,i)=>{
-      if(d.value===null) return null;
-      const x = padL + i*stepX;
-      const ratio = (d.value-minV)/((maxV-minV)||1);
-      const y = padT + chartH - ratio*chartH;
-      return {x,y};
-    });
-
-    let segs=[], current=[];
-    points.forEach(p=>{
-      if(p===null){ if(current.length){segs.push(current); current=[];} }
-      else current.push(p);
-    });
-    if(current.length) segs.push(current);
-
-    const pathsSvg = segs.map(seg=>{
-      const d = seg.map((p,i)=>(i===0?'M':'L')+p.x.toFixed(1)+' '+p.y.toFixed(1)).join(' ');
-      return `<path d="${d}" fill="none" stroke="var(--margin)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-    }).join('');
-
-    const dotsSvg = points.map(p=> p ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="var(--margin)"/>` : '').join('');
-
-    const labelsSvg = data.map((d,i)=>{
-      const x = padL + i*stepX;
-      return `<text x="${x.toFixed(1)}" y="${H-6}" font-size="9.5" text-anchor="middle" fill="var(--ink-faint)" font-family="Inter, sans-serif">${escapeHtml(d.label)}</text>`;
-    }).join('');
-
-    let gridSvg='';
-    if(opts.min!==undefined && opts.max!==undefined){
-      for(let v=Math.ceil(opts.min); v<=opts.max; v++){
-        const ratio = (v-minV)/((maxV-minV)||1);
-        const y = padT + chartH - ratio*chartH;
-        gridSvg += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--paper-line)" stroke-width="1" stroke-dasharray="2,3"/>`;
-        gridSvg += `<text x="${padL-4}" y="${(y+3).toFixed(1)}" font-size="8" text-anchor="end" fill="var(--ink-faint)" font-family="Inter, sans-serif">${v}</text>`;
-      }
-    }
-
-    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
-      ${gridSvg}${pathsSvg}${dotsSvg}${labelsSvg}
-    </svg>`;
-  }
-
-  function renderWeeklyChart(){
-    const weeks = lastNWeeksMondays(8);
-    const data = weeks.map(w=>{
-      const weekEnd = new Date(w+"T00:00:00");
-      weekEnd.setDate(weekEnd.getDate()+6);
-      const weekEndISO = toISODate(weekEnd);
-      const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
-      return { label: fmtWeekLabel(w), value: inWeek.reduce((a,s)=>a+s.duree,0) };
-    });
-    drawBarChart('#chartWeekly', data, {color:'var(--b)'});
-  }
-
-  function renderWeekdayChart(){
-    const dayLabels = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
-    const sums = [0,0,0,0,0,0,0];
-    doneSessions().forEach(s=>{
-      const d = new Date(s.date+"T00:00:00");
-      let idx = d.getDay();
-      idx = idx===0 ? 6 : idx-1;
-      sums[idx] += s.duree;
-    });
-    const data = dayLabels.map((lbl,i)=>({label:lbl, value:sums[i]}));
-    drawBarChart('#chartWeekday', data, {color:'var(--g)'});
-  }
-
-  function renderDifficultyChart(){
-    const weeks = lastNWeeksMondays(8);
-    const data = weeks.map(w=>{
-      const weekEnd = new Date(w+"T00:00:00");
-      weekEnd.setDate(weekEnd.getDate()+6);
-      const weekEndISO = toISODate(weekEnd);
-      const inWeek = doneSessions().filter(s=>s.date>=w && s.date<=weekEndISO);
-      const avg = inWeek.length ? inWeek.reduce((a,s)=>a+s.difficulte,0)/inWeek.length : null;
-      return { label: fmtWeekLabel(w), value: avg };
-    });
-    drawLineChart('#chartDifficulty', data, {min:1, max:5});
-  }
-
-  // ---------- STATISTIQUES ----------
-  // ---------- PERSONNALISATION DES STATISTIQUES ----------
-  // Préférence purement d'affichage, propre à cet appareil — pas de données
-  // personnelles, donc localStorage convient très bien ici.
-  const STATS_PREFS_KEY = 'carnet-stats-prefs-v1';
-  const STATS_PREFS_DEFAULT = { repartition:true, weekly:true, weekday:true, difficulty:true, note:true };
-
-  function loadStatsPrefs(){
-    try{
-      const raw = localStorage.getItem(STATS_PREFS_KEY);
-      return raw ? {...STATS_PREFS_DEFAULT, ...JSON.parse(raw)} : {...STATS_PREFS_DEFAULT};
-    }catch(e){
-      return {...STATS_PREFS_DEFAULT};
-    }
-  }
-  function saveStatsPrefs(prefs){
-    try{ localStorage.setItem(STATS_PREFS_KEY, JSON.stringify(prefs)); }catch(e){}
-  }
-
-  let statsPrefs = loadStatsPrefs();
-
-  function applyStatsPrefs(){
-    $('#statSectionRepartition').style.display = statsPrefs.repartition ? 'block' : 'none';
-    $('#statSectionWeekly').style.display = statsPrefs.weekly ? 'block' : 'none';
-    $('#statSectionWeekday').style.display = statsPrefs.weekday ? 'block' : 'none';
-    $('#statSectionDifficulty').style.display = statsPrefs.difficulty ? 'block' : 'none';
-    $('#statSectionNote').style.display = statsPrefs.note ? 'block' : 'none';
-  }
-
-  $$('#statsPrefsOverlay .c-switch').forEach(btn=>{
-    const key = btn.dataset.pref;
-    btn.classList.toggle('on', !!statsPrefs[key]);
-    btn.addEventListener('click', ()=>{
-      statsPrefs[key] = !statsPrefs[key];
-      btn.classList.toggle('on', statsPrefs[key]);
-      saveStatsPrefs(statsPrefs);
-      applyStatsPrefs();
-    });
-  });
-
-  $('#openStatsPrefsBtn').addEventListener('click', ()=>{
-    $('#statsPrefsOverlay').classList.add('show');
-  });
-  $('#closeStatsPrefsBtn').addEventListener('click', ()=>{
-    $('#statsPrefsOverlay').classList.remove('show');
-  });
-
-  function renderStatistiques(){
-    const totalMin = doneSessions().reduce((a,s)=>a+s.duree,0);
-    $('#statTotalTemps').textContent = totalMin >= 60 ? (Math.round(totalMin/6)/10)+"h" : totalMin+"min";
-    $('#statTotalSessions').textContent = doneSessions().length;
-    const moyDiff = doneSessions().length ? (doneSessions().reduce((a,s)=>a+s.difficulte,0)/doneSessions().length) : 0;
-    $('#statMoyDiff').textContent = doneSessions().length ? moyDiff.toFixed(1)+"/5" : "-";
-
-    const byMatiere = {};
-    doneSessions().forEach(s=>{
-      if(!byMatiere[s.matiere]) byMatiere[s.matiere] = {temps:0, count:0, diffSum:0};
-      byMatiere[s.matiere].temps += s.duree;
-      byMatiere[s.matiere].count += 1;
-      byMatiere[s.matiere].diffSum += s.difficulte;
-    });
-    const rows = Object.keys(byMatiere).map(m=>({
-      matiere:m,
-      temps: byMatiere[m].temps,
-      count: byMatiere[m].count,
-      diffMoy: byMatiere[m].diffSum / byMatiere[m].count
-    })).sort((a,b)=>b.temps-a.temps);
-
-    const wrap = $('#statBars');
-    wrap.innerHTML = '';
-    if(rows.length===0){
-      wrap.innerHTML = '<div class="c-empty">Pas encore de séances à analyser.</div>';
-    } else {
-      const maxTemps = Math.max(...rows.map(r=>r.temps));
-      rows.forEach(r=>{
-        const row = document.createElement('div');
-        row.className = 'c-bar-row';
-        const pct = Math.max(6, Math.round((r.temps/maxTemps)*100));
-        const timeLbl = r.temps>=60 ? (Math.round(r.temps/6)/10)+"h" : r.temps+"min";
-        row.innerHTML = `
-          <div class="bar-top">
-            <span class="bar-name">${escapeHtml(r.matiere)}</span>
-            <span class="bar-val">${timeLbl}</span>
-          </div>
-          <div class="bar-track" style="background:var(--paper-line);height:9px;border-radius:5px;overflow:hidden;">
-            <div class="c-bar-fill" style="width:${pct}%;background:var(${matiereColor(r.matiere)});"></div>
-          </div>
-          <div class="c-bar-sub">
-            <span>${r.count} séance${r.count>1?'s':''}</span>
-            <span>difficulté moy. ${r.diffMoy.toFixed(1)}/5</span>
-          </div>
-        `;
-        wrap.appendChild(row);
-      });
-    }
-
-    $('#statScheduleNote').innerHTML =
-      `<b>Matières personnalisées.</b> La liste des matières proposées dans "Ajouter" et "Minuteur" est basée sur ton emploi du temps (Mathématiques, Français, Physique-Chimie, Histoire-Géographie, Anglais LV1, Allemand LV2, Numérique &amp; Sc. Info, Enseignement scientifique, EMC). Les jours de cours réels (avec l'alternance d'Anglais LV1 les semaines impaires) sont aussi utilisés pour les "Suggestions du jour" sur l'Accueil.`;
-
-    renderWeeklyChart();
-    renderWeekdayChart();
-    renderDifficultyChart();
-  }
-
-  // ---------- MINUTEUR ----------
-  // Le temps écoulé est calculé à partir d'horodatages réels (Date.now()),
-  // pas d'un compteur incrémenté à chaque tick : setInterval est mis en
-  // pause par le navigateur quand l'onglet est en arrière-plan ou l'écran
-  // verrouillé, ce qui faussait le minuteur. L'état est aussi sauvegardé en
-  // local pour survivre à une fermeture complète de l'app pendant le minutage.
-  const TIMER_STATE_KEY = 'carnet-timer-state-v1';
-  let timerAccumulatedMs = 0;
-  let timerStartTs = null;
-  let timerRunning = false;
-  let timerInterval = null;
-  let timerMatiere = null;
-
-  function saveTimerState(){
-    try{
-      localStorage.setItem(TIMER_STATE_KEY, JSON.stringify({
-        startTs: timerStartTs,
-        accumulatedMs: timerAccumulatedMs,
-        running: timerRunning,
-        matiere: timerMatiere,
-        sujet: $('#timerSujetInput').value
-      }));
-    }catch(e){}
-  }
-
-  function clearTimerState(){
-    try{ localStorage.removeItem(TIMER_STATE_KEY); }catch(e){}
-  }
-
-  function loadTimerState(){
-    try{
-      const raw = localStorage.getItem(TIMER_STATE_KEY);
-      if(!raw) return;
-      const st = JSON.parse(raw);
-      timerAccumulatedMs = st.accumulatedMs || 0;
-      timerStartTs = st.startTs || null;
-      timerRunning = !!st.running;
-      timerMatiere = st.matiere || null;
-      if(st.sujet) $('#timerSujetInput').value = st.sujet;
-      if(timerMatiere){
-        $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===timerMatiere));
-      }
-      if(timerRunning && timerStartTs){
-        timerInterval = setInterval(renderTimerDisplay, 1000);
-      }
-    }catch(e){}
-  }
-
-  function getElapsedSeconds(){
-    const ms = timerAccumulatedMs + (timerRunning && timerStartTs ? (Date.now() - timerStartTs) : 0);
-    return Math.floor(ms/1000);
-  }
-
-  function buildTimerMatiereChips(){
-    const wrap = $('#timerMatiereChips');
-    wrap.innerHTML = '';
-    MATIERES_DEFAULT.forEach(m=>{
-      const chip = document.createElement('button');
-      chip.className = 'c-chip';
-      chip.type='button';
-      chip.textContent = m;
-      chip.addEventListener('click', ()=>{
-        timerMatiere = m;
-        $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
-        chip.classList.add('sel');
-        saveTimerState();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-  buildTimerMatiereChips();
-  $('#timerSujetInput').addEventListener('input', saveTimerState);
-
-  function fmtTimer(sec){
-    const h = Math.floor(sec/3600);
-    const m = Math.floor((sec%3600)/60);
-    const s = sec%60;
-    const pad = (n)=>String(n).padStart(2,'0');
-    return h>0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-  }
-
-  function renderTimerDisplay(){
-    const secs = getElapsedSeconds();
-    $('#timerDisplay').textContent = fmtTimer(secs);
-    $('#timerDisplay').classList.toggle('running', timerRunning);
-    $('#timerFinish').disabled = secs < 60;
-    $('#timerSub').textContent = timerRunning ? "En cours..." : (secs>0 ? "En pause" : "Prêt à démarrer");
-    $('#timerStart').textContent = timerRunning ? '⏸' : '▶';
-    const navBtn = document.querySelector('.c-nav-btn[data-view="minuteur"]');
-    if(navBtn) navBtn.classList.toggle('has-run', timerRunning);
-  }
-
-  // Recalcule immédiatement l'affichage dès que l'onglet redevient visible,
-  // sans attendre le prochain tick (qui peut avoir été retardé de plusieurs
-  // minutes par le navigateur).
-  document.addEventListener('visibilitychange', ()=>{
-    if(!document.hidden) renderTimerDisplay();
-  });
-
-  $('#timerStart').addEventListener('click', ()=>{
-    timerRunning = !timerRunning;
-    if(timerRunning){
-      timerStartTs = Date.now();
-      timerInterval = setInterval(renderTimerDisplay, 1000);
-    } else {
-      timerAccumulatedMs += Date.now() - timerStartTs;
-      timerStartTs = null;
-      clearInterval(timerInterval);
-    }
-    saveTimerState();
-    renderTimerDisplay();
-  });
-
-  $('#timerReset').addEventListener('click', ()=>{
-    timerRunning = false;
-    clearInterval(timerInterval);
-    timerAccumulatedMs = 0;
-    timerStartTs = null;
-    clearTimerState();
-    renderTimerDisplay();
-  });
-
-  $('#timerFinish').addEventListener('click', ()=>{
-    const secs = getElapsedSeconds();
-    timerRunning = false;
-    clearInterval(timerInterval);
-    const minutes = Math.max(1, Math.round(secs/60));
-
-    switchView('ajouter');
-    if(timerMatiere){
-      selectedMatiere = timerMatiere;
-      $$('.c-chip').forEach(c=>{
-        if($('#matiereChips').contains(c)) c.classList.toggle('sel', c.textContent===timerMatiere);
-      });
-    }
-    const sujetVal = $('#timerSujetInput').value.trim();
-    if(sujetVal) $('#sujetInput').value = sujetVal;
-    selectedDuree = minutes;
-    $('#dureeInput').value = minutes;
-    $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', parseInt(b.dataset.v,10)===minutes));
-
-    timerAccumulatedMs = 0;
-    timerStartTs = null;
-    timerMatiere = null;
-    clearTimerState();
-    $('#timerSujetInput').value = '';
-    $$('#timerMatiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
-    renderTimerDisplay();
-    showToast("Durée transférée, complète et enregistre ta séance");
-  });
-
-  loadTimerState();
-  renderTimerDisplay();
-
-  // ---------- CHAT ----------
-  let chatGlobalUnsubscribe = null;
-  let latestMessages = [];
-  let lastReadChatTs = 0;
-
-  function loadLastReadTs(){
-    try{ return parseInt(localStorage.getItem('carnet-chat-lastread-'+currentUid) || '0', 10); }
-    catch(e){ return 0; }
-  }
-  function saveLastReadTs(ts){
-    try{ localStorage.setItem('carnet-chat-lastread-'+currentUid, String(ts)); }catch(e){}
-  }
-
-  function isChatViewActive(){
-    const btn = document.querySelector('.c-nav-btn[data-view="chat"]');
-    return btn && btn.classList.contains('active');
-  }
-
-  function startGlobalChatListener(){
-    if(chatGlobalUnsubscribe) return;
-    lastReadChatTs = loadLastReadTs();
-    const q = query(messagesCol, orderBy("createdAt", "desc"), limit(200));
-    chatGlobalUnsubscribe = onSnapshot(q, (snap)=>{
-      const msgs = snap.docs.map(d=>({id:d.id, ...d.data()})).reverse();
-      const isFirstLoad = latestMessages.length === 0;
-      const previousLastId = latestMessages.length ? latestMessages[latestMessages.length-1].id : null;
-      latestMessages = msgs;
-
-      if(isChatViewActive()){
-        renderChat(msgs);
-        markChatRead();
-      } else {
-        updateChatBadge();
-        // Notification in-app (pas une notif système) si un nouveau message d'un autre arrive
-        if(!isFirstLoad && msgs.length){
-          const last = msgs[msgs.length-1];
-          if(last.id !== previousLastId && last.senderId !== currentUid){
-            showToast(`💬 ${last.senderName||'Quelqu\'un'} : ${last.text ? last.text.slice(0,40) : '📎 fichier'}`);
-          }
-        }
-      }
-    }, ()=>{
-      if(isChatViewActive()) $('#chatMessages').innerHTML = '<div class="c-empty">Chat indisponible pour le moment.</div>';
-    });
-  }
-
-  function updateChatBadge(){
-    const navBtn = document.querySelector('.c-nav-btn[data-view="chat"]');
-    if(!navBtn) return;
-    let badge = navBtn.querySelector('.chat-badge');
-    const unread = latestMessages.filter(m=>{
-      const ts = m.createdAt && m.createdAt.toMillis ? m.createdAt.toMillis() : 0;
-      return m.senderId !== currentUid && ts > lastReadChatTs;
-    }).length;
-    if(unread > 0){
-      if(!badge){
-        badge = document.createElement('span');
-        badge.className = 'chat-badge';
-        navBtn.appendChild(badge);
-      }
-      badge.textContent = unread > 9 ? '9+' : String(unread);
-      badge.title = unread + ' message(s) non lu(s)';
-    } else if(badge){
-      badge.remove();
-    }
-  }
-
-  function markChatRead(){
-    if(latestMessages.length===0) return;
-    const last = latestMessages[latestMessages.length-1];
-    const ts = last.createdAt && last.createdAt.toMillis ? last.createdAt.toMillis() : Date.now();
-    lastReadChatTs = ts;
-    saveLastReadTs(ts);
-    updateChatBadge();
-  }
-
-  function renderChat(messages){
-    const wrap = $('#chatMessages');
-    const wasNearBottom = (wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight) < 80;
-    wrap.innerHTML = '';
-    if(messages.length===0){
-      wrap.innerHTML = '<div class="c-empty">Aucun message pour l\'instant. Lance la discussion !</div>';
-      return;
-    }
-    messages.forEach(m=>{
-      const bubble = document.createElement('div');
-      const isMe = m.senderId === currentUid;
-      bubble.className = 'c-chat-bubble' + (isMe ? ' me' : '');
-      const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
-      const tsLabel = ts ? ts.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
-      let fileHtml = '';
-      if(m.fileURL){
-        if(m.fileType && m.fileType.startsWith('image/')){
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener"><img src="${m.fileURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
-        } else {
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
-        }
-      }
-      bubble.innerHTML = `
-        ${isMe ? '' : `<div class="who">${escapeHtml(m.senderName || 'Quelqu\'un')}</div>`}
-        ${m.text ? `<div class="txt">${escapeHtml(m.text)}</div>` : ''}
-        ${fileHtml}
-        ${tsLabel ? `<div class="ts">${tsLabel}</div>` : ''}
-      `;
-      wrap.appendChild(bubble);
-    });
-    if(wasNearBottom || messages[messages.length-1].senderId === currentUid){
-      wrap.scrollTop = wrap.scrollHeight;
-    }
-  }
-
-  async function sendChatMessage(){
-    const input = $('#chatInput');
-    const text = input.value.trim();
-    if(!text) return;
-    input.value = '';
-    try{
-      await addDoc(messagesCol, {
-        senderId: currentUid,
-        senderName: currentProfileName,
-        text: text.slice(0, 500),
-        createdAt: serverTimestamp()
-      });
-    }catch(e){
-      showToast("Message non envoyé");
-      input.value = text;
-    }
-  }
-  $('#chatSendBtn').addEventListener('click', sendChatMessage);
-  $('#chatInput').addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
-  });
-
-  $('#chatAttachBtn').addEventListener('click', ()=> $('#chatFileInput').click());
-  $('#chatFileInput').addEventListener('change', async (e)=>{
-    const file = e.target.files[0];
-    if(!file) return;
-    if(file.size > 10 * 1024 * 1024){ showToast("Fichier trop volumineux (10 Mo max)"); e.target.value=''; return; }
-    showToast("Envoi du fichier...");
-    try{
-      const path = `chat-uploads/${currentUid}/${Date.now()}-${file.name}`;
-      const fileRef = ref(storage, path);
-      await uploadBytes(fileRef, file);
-      const url = await getDownloadURL(fileRef);
-      await addDoc(messagesCol, {
-        senderId: currentUid,
-        senderName: currentProfileName,
-        text: '',
-        fileURL: url,
-        fileName: file.name,
-        fileType: file.type || '',
-        createdAt: serverTimestamp()
-      });
-      showToast("Fichier envoyé ✓");
-    }catch(e){
-      showToast("Échec de l'envoi (Firebase Storage est-il activé ?)");
-    }
-    e.target.value = '';
-  });
-
-  // ---------- COMPARAISON ENTRE PROFILS ----------
-  $('#openCompareBtn').addEventListener('click', async ()=>{
-    $('#compareOverlay').classList.add('show');
-    const list = $('#compareList');
-    list.innerHTML = '<div class="c-empty">Chargement...</div>';
-    try{
-      const [sessSnap, profSnap] = await Promise.all([getDocs(sessionsCol), getDocs(profilesCol)]);
-      const names = {};
-      profSnap.docs.forEach(d=>{ names[d.id] = d.data().name; });
-
-      const weekAgo = (()=>{const d=new Date(); d.setDate(d.getDate()-6); return toISODate(d);})();
-      const totals = {};
-      sessSnap.docs.forEach(d=>{
-        const s = d.data();
-        if(s.planifiee) return;
-        if(!(s.date >= weekAgo && s.date <= todayISO())) return;
-        if(!totals[s.ownerId]) totals[s.ownerId] = {temps:0, count:0};
-        totals[s.ownerId].temps += (s.duree||0);
-        totals[s.ownerId].count += 1;
-      });
-
-      const rows = Object.keys(names).map(uid=>({
-        uid,
-        name: names[uid],
-        temps: (totals[uid] && totals[uid].temps) || 0,
-        count: (totals[uid] && totals[uid].count) || 0
-      })).sort((a,b)=>b.temps-a.temps);
-
-      list.innerHTML = '';
-      if(rows.length===0){
-        list.innerHTML = '<div class="c-empty">Personne n\'a encore de profil.</div>';
-        return;
-      }
-      rows.forEach((r,i)=>{
-        const row = document.createElement('div');
-        row.className = 'c-leader-row' + (r.uid===currentUid ? ' me' : '');
-        const t = r.temps>=60 ? (Math.round(r.temps/6)/10)+'h' : r.temps+'min';
-        row.innerHTML = `
-          <span class="name">${i+1}. ${escapeHtml(r.name)}${r.uid===currentUid?' (toi)':''}</span>
-          <span class="val">${t}</span>
-        `;
-        list.appendChild(row);
-      });
-
-      // Fil d'activité : ce que tout le monde a révisé récemment.
-      const activityWrap = $('#friendActivityList');
-      const allDone = sessSnap.docs
-        .map(d=>({id:d.id, ...d.data()}))
-        .filter(s=>!s.planifiee)
-        .sort((a,b)=> b.date.localeCompare(a.date))
-        .slice(0, 20);
-      activityWrap.innerHTML = '';
-      if(allDone.length===0){
-        activityWrap.innerHTML = '<div class="c-empty">Personne n\'a encore enregistré de séance.</div>';
-      } else {
-        allDone.forEach(s=>{
-          const name = names[s.ownerId] || s.ownerName || 'Quelqu\'un';
-          const row = document.createElement('div');
-          row.className = 'c-activity-row';
-          row.style.borderLeftColor = 'var('+matiereColor(s.matiere)+')';
-          const t = s.duree>=60 ? (Math.round(s.duree/6)/10)+'h' : s.duree+'min';
-          row.innerHTML = `
-            <div class="top-row">
-              <span class="who">${escapeHtml(name)}${s.ownerId===currentUid?' (toi)':''}</span>
-              <span class="when">${fmtDate(s.date)}</span>
-            </div>
-            <div class="what">${escapeHtml(s.matiere)}${s.sujet ? ' — '+escapeHtml(s.sujet) : ''} · ${t}${s.difficulte ? ' · '+diffDots(s.difficulte) : ''}</div>
-          `;
-          activityWrap.appendChild(row);
-        });
-      }
-    }catch(e){
-      list.innerHTML = '<div class="c-empty">Impossible de charger le classement.</div>';
-    }
-  });
-  $('#closeCompareBtn').addEventListener('click', ()=>{
-    $('#compareOverlay').classList.remove('show');
-  });
-
-  // ---------- PROFIL & AUTHENTIFICATION ----------
-  let currentUid = null;
-  let currentProfileName = null;
-
-  async function loadOrPromptProfile(){
-    try{
-      const snap = await getDoc(doc(profilesCol, currentUid));
-      if(snap.exists()){
-        currentProfileName = snap.data().name;
-        $('#onboardingOverlay').style.display = 'none';
-        initApp();
-      } else {
-        $('#onboardingLoadingWrap').style.display = 'none';
-        $('#onboardingFormWrap').style.display = 'block';
-      }
-    }catch(e){
-      $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion impossible. Vérifie ta connexion internet et recharge la page.</div>';
-    }
-  }
-
-  $('#onboardingSaveBtn').addEventListener('click', async ()=>{
-    const name = $('#onboardingNameInput').value.trim();
-    if(!name){ showToast("Indique ton prénom"); return; }
-    try{
-      await setDoc(doc(profilesCol, currentUid), { name, createdAt: todayISO() });
-      currentProfileName = name;
-      $('#onboardingOverlay').classList.remove('show');
-      initApp();
-    }catch(e){
-      showToast("Échec de la création du profil");
-    }
-  });
-
-  $('#showLoginLinkBtn').addEventListener('click', ()=>{
-    $('#onboardingNewWrap').style.display = 'none';
-    $('#onboardingLoginWrap').style.display = 'block';
-  });
-  $('#showNewLinkBtn').addEventListener('click', ()=>{
-    $('#onboardingLoginWrap').style.display = 'none';
-    $('#onboardingNewWrap').style.display = 'block';
-  });
-
-  $('#loginSubmitBtn').addEventListener('click', async ()=>{
-    const email = $('#loginEmailInput').value.trim();
-    const password = $('#loginPasswordInput').value;
-    if(!email || !password){ showToast("Indique ton email et ton mot de passe"); return; }
-    try{
-      sessions = [];
-      evaluations = [];
-      if(chatGlobalUnsubscribe){ chatGlobalUnsubscribe(); chatGlobalUnsubscribe = null; }
-      latestMessages = [];
-      isAdmin = false;
-      await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged prend le relais : charge le profil existant.
-    }catch(e){
-      showToast("Email ou mot de passe incorrect");
-    }
-  });
-
-  function updateProfileBadge(){
-    $('#profileBadge').textContent = '👤 ' + currentProfileName;
-  }
-
-  function updateAccountOverlay(){
-    $('#accountProfileLine').textContent = `Profil actuel : ${currentProfileName}`;
-    const isLinked = auth.currentUser && auth.currentUser.providerData.some(p=>p.providerId==='password');
-    $('#accountLinkedWrap').style.display = isLinked ? 'block' : 'none';
-    $('#accountLinkWrap').style.display = isLinked ? 'none' : 'block';
-    $('#linkEmailInput').value = '';
-    $('#linkPasswordInput').value = '';
-    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
-    $('#adminPanelWrap').style.display = isAdmin ? 'block' : 'none';
-    checkOrphanedData();
-  }
-
-  $('#exportAllBtn').addEventListener('click', async ()=>{
-    showToast("Préparation de la sauvegarde...");
-    try{
-      const [sessSnap, evalSnap, profSnap, msgSnap] = await Promise.all([
-        getDocs(sessionsCol), getDocs(evaluationsCol), getDocs(profilesCol), getDocs(messagesCol)
-      ]);
-      const data = {
-        exportedAt: new Date().toISOString(),
-        sessions: sessSnap.docs.map(d=>({id:d.id, ...d.data()})),
-        evaluations: evalSnap.docs.map(d=>({id:d.id, ...d.data()})),
-        profiles: profSnap.docs.map(d=>({id:d.id, ...d.data()})),
-        messages: msgSnap.docs.map(d=>{
-          const m = d.data();
-          return {id:d.id, ...m, createdAt: (m.createdAt && m.createdAt.toDate) ? m.createdAt.toDate().toISOString() : null};
+      const res = await fetch(scriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // évite le preflight CORS
+        body: JSON.stringify({
+          famTitle: state.famTitle, categories: state.categories, rules: state.rules, transactions: state.transactions
         })
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `sauvegarde-carnet-${todayISO()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast("Sauvegarde téléchargée ✓");
-    }catch(e){
-      showToast("Échec de la sauvegarde");
-    }
-  });
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      showSyncBanner("google");
+    }catch(e){ console.error(e); showSyncBanner("error"); }
+  }, 800);
+}
+function persistConfig(){ schedulePersist(); }
+function persistTxUpsert(){ schedulePersist(); }
+function persistTxBulk(){ schedulePersist(); }
+function persistTxDelete(){ schedulePersist(); }
 
-  // Données créées avant l'ajout des profils (pas de champ ownerId). On ne
-  // les attribue JAMAIS automatiquement : seul un clic explicite, ici, peut
-  // les rattacher au profil actuellement connecté.
-  async function checkOrphanedData(){
-    const wrap = $('#migrationWrap');
-    try{
-      const [sessSnap, evalSnap] = await Promise.all([getDocs(sessionsCol), getDocs(evaluationsCol)]);
-      const orphanSessions = sessSnap.docs.filter(d => !('ownerId' in d.data()));
-      const orphanEvals = evalSnap.docs.filter(d => !('ownerId' in d.data()));
-      const total = orphanSessions.length + orphanEvals.length;
-      if(total === 0){
-        wrap.style.display = 'none';
-        return;
-      }
-      wrap.style.display = 'block';
-      $('#migrationNote').innerHTML = `<b>${total} élément(s)</b> ont été créés avant la mise en place des profils et n'appartiennent à personne pour l'instant (${orphanSessions.length} séance(s), ${orphanEvals.length} évaluation(s)). Si ce sont tes données, tu peux te les attribuer ci-dessous — ne le fais que si c'est vraiment toi qui les as créées.`;
-      $('#migrationBtn').onclick = async ()=>{
-        if(!confirm(`Attribuer ces ${total} élément(s) à ton profil (${currentProfileName}) ? Ne fais ça que si ce sont bien tes données.`)) return;
-        try{
-          await Promise.all([
-            ...orphanSessions.map(d => updateDoc(doc(db,"sessions",d.id), {ownerId: currentUid, ownerName: currentProfileName})),
-            ...orphanEvals.map(d => updateDoc(doc(db,"evaluations",d.id), {ownerId: currentUid, ownerName: currentProfileName}))
-          ]);
-          showToast("Données récupérées ✓");
-          wrap.style.display = 'none';
-          await loadSessions();
-          await evalGet();
-          renderAccueil();
-        }catch(e){
-          showToast("Échec de la récupération");
-        }
-      };
-    }catch(e){
-      wrap.style.display = 'none';
-    }
+/* ---------------- Navigation ---------------- */
+document.querySelectorAll("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+    document.querySelectorAll("section.view").forEach(v=>v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-"+btn.dataset.view).classList.add("active");
+    if(btn.dataset.view === "dashboard") renderDashboard();
+    if(btn.dataset.view === "transactions") renderTransactions();
+  });
+});
+
+const famTitleInput = document.getElementById("famTitle");
+famTitleInput.addEventListener("change", ()=>{ state.famTitle = famTitleInput.value.trim() || "Comptes de la famille"; persistConfig(); });
+
+/* ---------------- Catégories ---------------- */
+function addCategory(){
+  const nameInput = document.getElementById("newCatName");
+  const typeInput = document.getElementById("newCatType");
+  const name = nameInput.value.trim();
+  if(!name) return;
+  state.categories.push({ id: uid(), name, type: typeInput.value });
+  nameInput.value = "";
+  persistConfig();
+  renderAll();
+}
+function removeCategory(id){
+  state.categories = state.categories.filter(c=>c.id!==id);
+  state.rules = state.rules.filter(r=>r.categoryId!==id);
+  const affected = state.transactions.filter(t=>t.categoryId===id);
+  affected.forEach(t=>{ t.categoryId=""; t.source=""; });
+  persistConfig();
+  persistTxBulk(affected);
+  renderAll();
+}
+function renderCategories(){
+  const tbody = document.getElementById("catTable");
+  tbody.innerHTML = "";
+  const sorted = [...state.categories].sort((a,b)=> (a.group||"").localeCompare(b.group||"") || a.name.localeCompare(b.name));
+  sorted.forEach(cat=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${cat.group ? `<span class="hint" style="margin:0;">${cat.group} ·</span> ` : ""}${cat.name}</td><td>${cat.type==='revenu'?'Revenu':'Dépense'}</td>
+      <td><button class="icon-btn" onclick="removeCategory('${cat.id}')">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  const catOptions = state.categories.map(c=>`<option value="${c.id}">${c.group?c.group+" · ":""}${c.name}</option>`).join("");
+  document.getElementById("newRuleCategory").innerHTML = catOptions || '<option value="">Aucune catégorie</option>';
+  document.getElementById("filterCategory").innerHTML = '<option value="">Toutes catégories</option><option value="__none__">Non catégorisé</option>' + catOptions;
+}
+
+/* ---------------- Règles ---------------- */
+function addRule(){
+  const kwInput = document.getElementById("newRuleKeyword");
+  const catSel = document.getElementById("newRuleCategory");
+  const keyword = kwInput.value.trim();
+  if(!keyword || !catSel.value) return;
+  state.rules.push({ id: uid(), keyword, categoryId: catSel.value });
+  kwInput.value = "";
+  persistConfig();
+  renderRules();
+}
+function removeRule(id){ state.rules = state.rules.filter(r=>r.id!==id); persistConfig(); renderRules(); }
+function catName(id){ const c = state.categories.find(c=>c.id===id); return c ? c.name : ""; }
+function renderRules(){
+  const tbody = document.getElementById("ruleTable");
+  tbody.innerHTML = "";
+  if(state.rules.length===0){ tbody.innerHTML = '<tr><td colspan="3" class="empty">Aucune règle pour le moment.</td></tr>'; return; }
+  state.rules.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.keyword}</td><td>${catName(r.categoryId)}</td>
+      <td><button class="icon-btn" onclick="removeRule('${r.id}')">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function matchRule(label){
+  const upper = (label||"").toUpperCase();
+  for(const r of state.rules){
+    if(upper.includes(r.keyword.toUpperCase())) return r.categoryId;
   }
-
-  $('#profileBadge').addEventListener('click', ()=>{
-    updateAccountOverlay();
-    $('#accountOverlay').classList.add('show');
+  return "";
+}
+function reapplyRules(){
+  const changed = [];
+  state.transactions.forEach(t=>{
+    if(!t.categoryId){
+      const cid = matchRule(t.label);
+      if(cid){ t.categoryId = cid; t.source = "rule"; changed.push(t); }
+    }
   });
-  $('#closeAccountBtn').addEventListener('click', ()=>{
-    $('#accountOverlay').classList.remove('show');
-  });
+  persistTxBulk(changed);
+  renderAll();
+  alert(changed.length + " opération(s) classée(s) par les règles.");
+}
 
-  $('#linkSaveBtn').addEventListener('click', async ()=>{
-    const email = $('#linkEmailInput').value.trim();
-    const password = $('#linkPasswordInput').value;
-    if(!email || !password){ showToast("Indique un email et un mot de passe"); return; }
-    if(password.length < 8){ showToast("Mot de passe trop court (8 caractères minimum)"); return; }
-    try{
-      const cred = EmailAuthProvider.credential(email, password);
-      await linkWithCredential(auth.currentUser, cred);
-      showToast("Profil sauvegardé ✓");
-      updateAccountOverlay();
-    }catch(e){
-      if(e.code === 'auth/email-already-in-use'){
-        showToast("Cet email est déjà utilisé par un autre profil");
-      } else {
-        showToast("Échec de la sauvegarde");
+/* ---------------- Import CSV ---------------- */
+let parsedRows = null, parsedHeaders = null;
+
+const dropZone = document.getElementById("dropZone");
+["dragover","dragleave","drop"].forEach(evt=>{
+  dropZone.addEventListener(evt, e=>{
+    e.preventDefault();
+    dropZone.classList.toggle("drag", evt==="dragover");
+    if(evt==="drop" && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+});
+
+function handleFile(file){
+  if(!file) return;
+  Papa.parse(file, {
+    header: false,
+    skipEmptyLines: true,
+    delimitersToGuess: [',',';','\t','|'],
+    complete: (res)=>{
+      const raw = res.data;
+      if(!raw || raw.length === 0){ alert("Fichier vide ou illisible."); return; }
+      // Certains logiciels (iFinance, etc.) ajoutent plusieurs lignes d'info avant
+      // la vraie ligne d'en-têtes : on cherche la première ligne contenant "Date".
+      let headerIdx = raw.findIndex(row => row.some(cell => (cell||"").trim().toLowerCase() === "date"));
+      if(headerIdx === -1) headerIdx = 0;
+      const headers = raw[headerIdx].map(h => (h||"").trim());
+      parsedHeaders = headers;
+      parsedRows = raw.slice(headerIdx+1).map(arr=>{
+        const obj = {};
+        headers.forEach((h,i)=>{ obj[h] = arr[i] !== undefined ? arr[i] : ""; });
+        return obj;
+      }).filter(row => Object.values(row).some(v => (v||"").trim() !== ""));
+
+      const preambleHint = document.getElementById("importPreambleHint");
+      if(headerIdx > 0){
+        preambleHint.style.display = "block";
+        preambleHint.textContent = `${headerIdx} ligne(s) d'en-tête du fichier ignorée(s) avant le tableau des opérations.`;
+      }else{
+        preambleHint.style.display = "none";
       }
-    }
-  });
 
-  $('#switchProfileBtn').addEventListener('click', async ()=>{
-    if(!confirm("Changer de profil ? Tu ne verras plus tes données actuelles sur cet appareil (elles restent enregistrées si tu les as sauvegardées avec un email).")) return;
-    try{
-      $('#accountOverlay').classList.remove('show');
-      await signOut(auth);
-      sessions = [];
-      evaluations = [];
-      if(chatGlobalUnsubscribe){ chatGlobalUnsubscribe(); chatGlobalUnsubscribe = null; }
-      latestMessages = [];
-      isAdmin = false;
-      $('#onboardingNameInput').value = '';
-      $('#onboardingLoginWrap').style.display = 'none';
-      $('#onboardingNewWrap').style.display = 'block';
-      await signInAnonymously(auth);
-    }catch(e){
-      showToast("Échec du changement de profil");
-    }
+      if(parsedRows.length === 0){ alert("Aucune opération trouvée dans ce fichier."); return; }
+      showMapping();
+    },
+    error: ()=> alert("Impossible de lire ce fichier CSV.")
   });
+}
 
-  onAuthStateChanged(auth, (user)=>{
-    if(user){
-      currentUid = user.uid;
-      loadOrPromptProfile();
-    }
-  });
-  signInAnonymously(auth).catch(()=>{
-    $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
-  });
-
-  // ---------- INIT ----------
-  async function initApp(){
-    $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
-    $('#dateInput').value = todayISO();
-    updateProfileBadge();
-    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
-    await loadSessions();
-    await evalGet();
-    updateRevoirSub();
-    renderAccueil();
-    startGlobalChatListener();
+function guessColumn(headers, candidates){
+  for(const cand of candidates){
+    const found = headers.find(h => h.trim().toLowerCase() === cand);
+    if(found) return found;
   }
+  for(const cand of candidates){
+    const found = headers.find(h => h.trim().toLowerCase().includes(cand));
+    if(found) return found;
+  }
+  return headers[0] || "";
+}
+
+function showMapping(){
+  document.getElementById("mappingBox").style.display = "block";
+  const opts = parsedHeaders.map(h=>`<option value="${h}">${h}</option>`).join("");
+  ["mapDate","mapLabel","mapAmount","mapDebit","mapCredit"].forEach(id=>{
+    document.getElementById(id).innerHTML = opts;
+  });
+  document.getElementById("mapCategory").innerHTML = '<option value="">Aucune</option>' + opts;
+
+  document.getElementById("mapDate").value = guessColumn(parsedHeaders, ["date","date opération","date operation"]);
+  document.getElementById("mapLabel").value = guessColumn(parsedHeaders, ["libellé","libelle","label","description","intitulé","intitule","libellé de l'opération"]);
+  document.getElementById("mapAmount").value = guessColumn(parsedHeaders, ["montant","amount"]);
+  document.getElementById("mapDebit").value = guessColumn(parsedHeaders, ["débit","debit"]);
+  document.getElementById("mapCredit").value = guessColumn(parsedHeaders, ["crédit","credit"]);
+  const guessedCat = guessColumn(parsedHeaders, ["catégorie","categorie","category"]);
+  document.getElementById("mapCategory").value = parsedHeaders.includes(guessedCat) ? guessedCat : "";
+
+  const hasSplit = parsedHeaders.some(h=>/d[ée]bit/i.test(h)) && parsedHeaders.some(h=>/cr[ée]dit/i.test(h));
+  document.getElementById("mapAmountMode").value = hasSplit ? "split" : "single";
+  toggleAmountMode();
+  renderPreview();
+}
+
+function toggleAmountMode(){
+  const split = document.getElementById("mapAmountMode").value === "split";
+  document.getElementById("mapAmountSingleBox").style.display = split ? "none" : "block";
+  document.getElementById("mapDebitBox").style.display = split ? "block" : "none";
+  document.getElementById("mapCreditBox").style.display = split ? "block" : "none";
+  renderPreview();
+}
+["mapDate","mapLabel","mapAmount","mapDebit","mapCredit","mapCategory"].forEach(id=>{
+  document.addEventListener("change", (e)=>{ if(e.target.id===id) renderPreview(); });
+});
+
+function parseFrenchNumber(str){
+  if(str === null || str === undefined) return NaN;
+  let s = String(str).trim().replace(/\s/g,"").replace(/€/g,"");
+  if(s === "") return NaN;
+  if(s.includes(",") && s.includes(".")){
+    s = s.replace(/\./g,"").replace(",", ".");
+  }else if(s.includes(",")){
+    s = s.replace(",", ".");
+  }
+  return parseFloat(s);
+}
+
+function parseFlexDate(str){
+  if(!str) return "";
+  const s = String(str).trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if(m) return `20${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return s;
+}
+
+function buildRowAmount(row){
+  const mode = document.getElementById("mapAmountMode").value;
+  if(mode === "split"){
+    const debit = parseFrenchNumber(row[document.getElementById("mapDebit").value]);
+    const credit = parseFrenchNumber(row[document.getElementById("mapCredit").value]);
+    const d = isNaN(debit) ? 0 : -Math.abs(debit);
+    const c = isNaN(credit) ? 0 : Math.abs(credit);
+    return d !== 0 ? d : c;
+  }else{
+    const v = parseFrenchNumber(row[document.getElementById("mapAmount").value]);
+    return isNaN(v) ? 0 : v;
+  }
+}
+
+function renderPreview(){
+  if(!parsedRows) return;
+  const dateCol = document.getElementById("mapDate").value;
+  const labelCol = document.getElementById("mapLabel").value;
+  const catCol = document.getElementById("mapCategory").value;
+  const rows = parsedRows.slice(0,5);
+  let html = "<thead><tr><th>Date</th><th>Libellé</th><th class='num'>Montant</th>" + (catCol?"<th>Catégorie (fichier)</th>":"") + "</tr></thead><tbody>";
+  rows.forEach(r=>{
+    const amt = buildRowAmount(r);
+    html += `<tr><td>${parseFlexDate(r[dateCol])}</td><td>${(r[labelCol]||"").slice(0,60)}</td><td class="num">${euro(amt)}</td>${catCol?`<td>${(r[catCol]||"—")}</td>`:""}</tr>`;
+  });
+  html += "</tbody>";
+  document.getElementById("previewTable").innerHTML = html;
+  document.getElementById("importSummary").textContent =
+    `Aperçu des 5 premières lignes sur ${parsedRows.length} au total. Vérifiez que les colonnes correspondent bien.`;
+}
+
+/* Retrouve une catégorie existante (par groupe+nom, insensible à la casse) ou en crée une. */
+function findOrCreateCategory(rawValue, amount){
+  const value = (rawValue||"").trim();
+  if(!value) return "";
+  const parts = value.split(":").map(p=>p.trim()).filter(Boolean);
+  if(parts.length === 0) return "";
+  const group = parts.length > 1 ? parts[0] : "";
+  const name = parts.length > 1 ? parts.slice(1).join(" / ") : parts[0];
+  const key = (group+"|"+name).toLowerCase();
+  let cat = state.categories.find(c => ((c.group||"")+"|"+c.name).toLowerCase() === key);
+  if(!cat){
+    cat = { id: uid(), name, group, type: amount >= 0 ? "revenu" : "depense" };
+    state.categories.push(cat);
+  }
+  return cat.id;
+}
+
+function confirmImport(){
+  if(!parsedRows) return;
+  const dateCol = document.getElementById("mapDate").value;
+  const labelCol = document.getElementById("mapLabel").value;
+  const catCol = document.getElementById("mapCategory").value;
+  const existingHashes = new Set(state.transactions.map(t=>t.hash));
+  const categoriesBefore = state.categories.length;
+  const newTxs = [];
+  let added = 0, skipped = 0, fromFile = 0;
+  parsedRows.forEach(r=>{
+    const date = parseFlexDate(r[dateCol]);
+    const label = (r[labelCol]||"").trim();
+    const amount = buildRowAmount(r);
+    if(!date || !label || amount === 0) { if(!date && !label) return; }
+    const hash = date+"|"+label+"|"+amount.toFixed(2);
+    if(existingHashes.has(hash)){ skipped++; return; }
+    existingHashes.add(hash);
+
+    let categoryId = "", source = "";
+    if(catCol && r[catCol] && r[catCol].trim()){
+      categoryId = findOrCreateCategory(r[catCol], amount);
+      if(categoryId){ source = "import"; fromFile++; }
+    }
+    if(!categoryId){
+      categoryId = matchRule(label);
+      if(categoryId) source = "rule";
+    }
+
+    const tx = { id: uid(), date, label, amount, categoryId, source, hash };
+    state.transactions.push(tx);
+    newTxs.push(tx);
+    added++;
+  });
+  if(state.categories.length !== categoriesBefore) persistConfig();
+  persistTxBulk(newTxs);
+  parsedRows = null;
+  document.getElementById("mappingBox").style.display = "none";
+  document.getElementById("csvFile").value = "";
+  renderAll();
+  alert(`${added} opération(s) importée(s) (dont ${fromFile} déjà catégorisée(s) depuis le fichier). ${skipped} doublon(s) ignoré(s).`);
+  document.querySelector('nav.tabs button[data-view="transactions"]').click();
+}
+
+/* ---------------- Transactions ---------------- */
+function monthKey(date){ return (date||"").slice(0,7); }
+
+function renderMonthFilterOptions(){
+  const months = Array.from(new Set(state.transactions.map(t=>monthKey(t.date)).filter(Boolean))).sort().reverse();
+  const opts = '<option value="">Tous les mois</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join("");
+  const filterMonth = document.getElementById("filterMonth");
+  const prev = filterMonth.value;
+  filterMonth.innerHTML = opts;
+  if(months.includes(prev)) filterMonth.value = prev;
+
+  const dashMonth = document.getElementById("dashMonth");
+  const prevD = dashMonth.value;
+  dashMonth.innerHTML = '<option value="">Tous les mois</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join("");
+  if(months.includes(prevD)) dashMonth.value = prevD; else if(months[0]) dashMonth.value = months[0];
+}
+
+function setCategoryOnTx(id, categoryId){
+  const t = state.transactions.find(t=>t.id===id);
+  if(!t) return;
+  t.categoryId = categoryId;
+  t.source = categoryId ? "manual" : "";
+  persistTxUpsert(t);
+  renderTransactions();
+}
+function removeTx(id){
+  state.transactions = state.transactions.filter(t=>t.id!==id);
+  persistTxDelete(id);
+  renderAll();
+}
+
+function renderTransactions(){
+  renderMonthFilterOptions();
+  const search = (document.getElementById("filterSearch").value||"").toLowerCase();
+  const catFilter = document.getElementById("filterCategory").value;
+  const monthFilter = document.getElementById("filterMonth").value;
+
+  let rows = [...state.transactions].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  if(search) rows = rows.filter(t=>t.label.toLowerCase().includes(search));
+  if(catFilter === "__none__") rows = rows.filter(t=>!t.categoryId);
+  else if(catFilter) rows = rows.filter(t=>t.categoryId === catFilter);
+  if(monthFilter) rows = rows.filter(t=>monthKey(t.date) === monthFilter);
+
+  const tbody = document.getElementById("txTable");
+  tbody.innerHTML = "";
+  const catOptions = state.categories.map(c=>`<option value="${c.id}">${c.group?c.group+" · ":""}${c.name}</option>`).join("");
+  rows.forEach(t=>{
+    const tr = document.createElement("tr");
+    const badge = t.source === "rule" ? '<span class="tag rule">règle</span>'
+      : t.source === "ai" ? '<span class="tag ai">IA</span>'
+      : t.source === "import" ? '<span class="tag import">fichier</span>'
+      : t.source === "manual" ? '<span class="tag manual">manuel</span>'
+      : '<span class="tag none">à trier</span>';
+    tr.innerHTML = `
+      <td>${t.date||"—"}</td>
+      <td>${t.label}</td>
+      <td class="num amt ${t.amount>=0?'pos':'neg'}">${euro(t.amount)}</td>
+      <td><select class="catsel" onchange="setCategoryOnTx('${t.id}', this.value)">
+            <option value="">—</option>${catOptions}
+          </select></td>
+      <td>${badge}</td>
+      <td><button class="icon-btn" onclick="removeTx('${t.id}')">✕</button></td>`;
+    tr.querySelector("select").value = t.categoryId || "";
+    tbody.appendChild(tr);
+  });
+  document.getElementById("txEmpty").style.display = rows.length ? "none" : "block";
+
+  const uncatCount = state.transactions.filter(t=>!t.categoryId).length;
+  document.getElementById("aiSortBtn").disabled = uncatCount === 0;
+  renderKpis();
+}
+
+function renderKpis(){
+  const totalIn = state.transactions.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const totalOut = state.transactions.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+  document.getElementById("kpiIn").textContent = euro(totalIn);
+  document.getElementById("kpiOut").textContent = euro(Math.abs(totalOut));
+  const net = totalIn + totalOut;
+  const netEl = document.getElementById("kpiNet");
+  netEl.textContent = (net>=0?"+":"") + euro(net);
+  netEl.className = "v " + (net>=0 ? "pos" : "neg");
+}
+
+/* ---------------- Tri IA ---------------- */
+let sampleCap = null;
+(async ()=>{
+  try{
+    if(window.claude && window.claude.use){
+      sampleCap = await window.claude.use("sample");
+    }
+  }catch(e){ sampleCap = null; }
+  updateAiAvailability();
 })();
+
+const ARTIFACT_URL = "https://claude.ai/artifact/Vk1LQzsmn8knYDhC71VdZJ";
+
+function updateAiAvailability(){
+  const hint = document.getElementById("aiHint");
+  if(!sampleCap){
+    hint.style.display = "block";
+    hint.innerHTML = "Le tri par IA n'est disponible que lorsque cet outil est ouvert via son lien Claude publié. " +
+      `<a href="${ARTIFACT_URL}" target="_blank" rel="noopener" style="color:var(--green); font-weight:600;">Ouvrir l'outil en ligne pour trier avec l'IA →</a>`;
+    document.getElementById("aiSortBtn").title = "Indisponible hors du lien Claude";
+  }else{
+    hint.style.display = "none";
+  }
+}
+
+async function runAiSort(){
+  if(!sampleCap){
+    if(confirm("Le tri par IA n'est disponible que via le lien Claude publié. Ouvrir cet outil en ligne dans un nouvel onglet ?")){
+      window.open(ARTIFACT_URL, "_blank", "noopener");
+    }
+    return;
+  }
+  const uncategorized = state.transactions.filter(t=>!t.categoryId).slice(0, 40);
+  if(uncategorized.length === 0){ alert("Tout est déjà catégorisé !"); return; }
+  const btn = document.getElementById("aiSortBtn");
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = "Analyse en cours...";
+
+  const catList = state.categories.map(c=>`${c.id}: ${c.name} (${c.type})`).join("\n");
+  const txList = uncategorized.map((t,i)=>`${i}. "${t.label}" — ${t.amount.toFixed(2)} €`).join("\n");
+  const genericWords = ["CARTE","PRLV","VIR","VIREMENT","PAIEMENT","ACHAT","CB"];
+
+  const prompt = `Tu classes des opérations bancaires d'une famille française dans des catégories existantes.
+Catégories disponibles (id: nom (type)) :
+${catList}
+
+Opérations à classer (index. libellé — montant ; montant négatif = dépense, positif = revenu) :
+${txList}
+
+Pour chaque opération, choisis l'id de catégorie le plus pertinent (n'invente pas d'id). Quand le libellé contient un nom d'enseigne ou de service clairement identifiable (pas un mot générique bancaire comme CARTE, PRLV, VIR, VIREMENT, PAIEMENT), propose aussi un "keyword" : un extrait court et distinctif du libellé (le nom du commerçant/service, tel qu'il apparaît dans le libellé) qui permettrait de reconnaître automatiquement des opérations similaires à l'avenir. Laisse "keyword" vide si le libellé est trop générique ou ponctuel pour servir de règle.
+
+Réponds UNIQUEMENT avec un objet JSON de la forme {"assignments":[{"index":0,"categoryId":"...","keyword":"..."}]}, un élément par opération.`;
+
+  try{
+    const result = await sampleCap.json(prompt, { modelTier: "quick" });
+    const assignments = (result && result.assignments) || [];
+    const validIds = new Set(state.categories.map(c=>c.id));
+    const existingKeywords = new Set(state.rules.map(r=>r.keyword.toUpperCase()));
+    let applied = 0;
+    const changed = [];
+    const ruleCandidates = [];
+    const seenKeywords = new Set();
+    assignments.forEach(a=>{
+      const tx = uncategorized[a.index];
+      if(tx && validIds.has(a.categoryId)){
+        tx.categoryId = a.categoryId;
+        tx.source = "ai";
+        changed.push(tx);
+        applied++;
+
+        const kw = (a.keyword||"").trim();
+        const kwUpper = kw.toUpperCase();
+        if(kw.length >= 3
+           && !genericWords.includes(kwUpper)
+           && tx.label.toUpperCase().includes(kwUpper)
+           && !existingKeywords.has(kwUpper)
+           && !seenKeywords.has(kwUpper)){
+          seenKeywords.add(kwUpper);
+          ruleCandidates.push({ keyword: kw, categoryId: a.categoryId, sampleLabel: tx.label });
+        }
+      }
+    });
+    persistTxBulk(changed);
+    renderAll();
+    if(ruleCandidates.length){
+      showAiRulesReview(ruleCandidates);
+      alert(applied + " opération(s) classée(s) par l'IA. " + ruleCandidates.length + " règle(s) proposée(s) — à valider ci-dessous pour les prochains imports.");
+    }else{
+      alert(applied + " opération(s) classée(s) par l'IA. Vérifiez et ajustez si besoin.");
+    }
+  }catch(err){
+    alert("Le tri par IA a échoué (" + (err && err.code || "erreur") + "). Réessayez plus tard.");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalText;
+    renderTransactions();
+  }
+}
+
+let pendingAiRules = [];
+function showAiRulesReview(candidates){
+  pendingAiRules = candidates;
+  const box = document.getElementById("aiRulesReview");
+  const list = document.getElementById("aiRulesList");
+  list.innerHTML = candidates.map((c,i)=>`
+    <label class="chk on" style="display:flex; align-items:center; gap:8px; padding:8px 10px; margin-bottom:6px; border-radius:4px; background:var(--surface-2);">
+      <input type="checkbox" data-idx="${i}" checked style="width:auto;">
+      <span><strong>${c.keyword}</strong> → ${catName(c.categoryId)}</span>
+      <span class="hint" style="margin:0 0 0 auto;">ex. « ${c.sampleLabel.slice(0,40)} »</span>
+    </label>`).join("");
+  box.style.display = "block";
+}
+function confirmAiRules(){
+  const checks = document.querySelectorAll("#aiRulesList input[type=checkbox]");
+  let added = 0;
+  checks.forEach(chk=>{
+    if(chk.checked){
+      const c = pendingAiRules[Number(chk.dataset.idx)];
+      if(c){ state.rules.push({ id: uid(), keyword: c.keyword, categoryId: c.categoryId }); added++; }
+    }
+  });
+  if(added){ persistConfig(); renderRules(); }
+  dismissAiRules();
+  alert(added + " règle(s) ajoutée(s).");
+}
+function dismissAiRules(){
+  pendingAiRules = [];
+  document.getElementById("aiRulesReview").style.display = "none";
+  document.getElementById("aiRulesList").innerHTML = "";
+}
+
+/* ---------------- Dashboard ---------------- */
+function renderDashboard(){
+  const monthFilter = document.getElementById("dashMonth").value;
+  const rows = monthFilter ? state.transactions.filter(t=>monthKey(t.date)===monthFilter) : state.transactions;
+
+  const expenseCats = state.categories.filter(c=>c.type==="depense");
+  const box = document.getElementById("dashCats");
+  box.innerHTML = "";
+  const totalsByCat = expenseCats.map(cat=>{
+    const sum = rows.filter(t=>t.categoryId===cat.id).reduce((s,t)=>s+Math.abs(Math.min(t.amount,0)) + (t.amount<0?0:0),0);
+    const total = rows.filter(t=>t.categoryId===cat.id && t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0);
+    return { cat, total };
+  }).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+
+  const maxVal = Math.max(...totalsByCat.map(x=>x.total), 1);
+  document.getElementById("dashCatsEmpty").style.display = totalsByCat.length ? "none" : "block";
+  totalsByCat.forEach(x=>{
+    const pct = (x.total/maxVal)*100;
+    const row = document.createElement("div");
+    row.className = "cat-row";
+    row.innerHTML = `<div class="top"><span class="name">${x.cat.name}</span><span class="amt">${euro(x.total)}</span></div>
+      <div class="bar-track"><div class="bar-fill exp" style="width:${pct}%"></div></div>`;
+    box.appendChild(row);
+  });
+
+  const months = Array.from(new Set(state.transactions.map(t=>monthKey(t.date)).filter(Boolean))).sort().reverse();
+  const mtbody = document.getElementById("monthTable");
+  mtbody.innerHTML = "";
+  document.getElementById("monthEmpty").style.display = months.length ? "none" : "block";
+  months.forEach(m=>{
+    const mrows = state.transactions.filter(t=>monthKey(t.date)===m);
+    const inSum = mrows.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+    const outSum = mrows.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+    const net = inSum+outSum;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${m}</td><td class="num amt pos">${euro(inSum)}</td><td class="num amt neg">${euro(Math.abs(outSum))}</td>
+      <td class="num" style="font-weight:600; color:${net>=0?'var(--green)':'var(--terracotta)'}">${(net>=0?"+":"")+euro(net)}</td>`;
+    mtbody.appendChild(tr);
+  });
+}
+
+/* ---------------- Export / Import sauvegarde ---------------- */
+let downloadsCap = null;
+(async ()=>{
+  try{
+    if(window.claude && window.claude.use){
+      downloadsCap = await window.claude.use("downloads");
+    }
+  }catch(e){ downloadsCap = null; }
+})();
+
+async function saveFile(filename, text, mime){
+  if(downloadsCap){
+    try{
+      await downloadsCap.save({ filename, data: text });
+      return;
+    }catch(e){ /* on retente en local ci-dessous */ }
+  }
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportBackup(){
+  const safe = (state.famTitle||"comptes").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+  saveFile((safe||"comptes")+"-sauvegarde.json", JSON.stringify(state, null, 2), "application/json");
+}
+
+function importBackup(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed || typeof parsed !== "object") throw new Error("format invalide");
+      state.famTitle = parsed.famTitle || state.famTitle;
+      state.categories = parsed.categories || state.categories;
+      state.rules = parsed.rules || state.rules;
+      const importedTxs = parsed.transactions || [];
+      importedTxs.forEach(t=>{
+        const idx = state.transactions.findIndex(x=>x.id===t.id);
+        if(idx>=0) state.transactions[idx] = t; else state.transactions.push(t);
+      });
+      persistConfig();
+      persistTxBulk(importedTxs);
+      famTitleInput.value = state.famTitle;
+      renderAll();
+    }catch(err){
+      alert("Ce fichier ne ressemble pas à une sauvegarde valide.");
+    }
+  };
+  reader.readAsText(file);
+  document.getElementById("importBackupFile").value = "";
+}
+
+function exportCsv(){
+  const header = "Date;Libelle;Montant;Categorie;Origine\n";
+  const lines = [...state.transactions].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(t=>{
+    const cat = catName(t.categoryId) || "Non categorise";
+    const src = t.source === "rule" ? "Regle" : t.source === "ai" ? "IA" : t.source === "import" ? "Fichier" : t.source === "manual" ? "Manuel" : "";
+    const label = (t.label||"").replace(/;/g,",");
+    return `${t.date};${label};${t.amount.toFixed(2).replace(".",",")};${cat};${src}`;
+  }).join("\n");
+  saveFile("operations-categorisees.csv", header+lines, "text/csv;charset=utf-8");
+}
+
+/* ---------------- Rendu global ---------------- */
+function renderAll(){
+  renderCategories();
+  renderRules();
+  renderTransactions();
+  renderDashboard();
+}
+initStorage();
 </script>
 </body>
 </html>
