@@ -851,6 +851,7 @@
           <input type="password" id="loginPasswordInput" placeholder="••••••••">
         </div>
         <button class="c-submit" id="loginSubmitBtn">Se connecter</button>
+        <button class="c-reset-link" id="forgotPasswordBtn" style="margin-top:12px;">Mot de passe oublié ?</button>
         <button class="c-reset-link" id="showNewLinkBtn" style="margin-top:16px;">Créer un nouveau profil à la place</button>
       </div>
     </div>
@@ -1322,7 +1323,8 @@
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, signInAnonymously, onAuthStateChanged, signOut,
-    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword
+    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword,
+    sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
     getStorage, ref, uploadBytes, getDownloadURL
@@ -1681,9 +1683,10 @@
       chip.addEventListener('click', ()=>{
         selectedMatiere = m;
         $('#matiereCustom').value = '';
-        $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+        $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
         chip.classList.add('sel');
         updateMatiereEvalHint(m);
+        updateRevoirSub();
       });
       wrap.appendChild(chip);
     });
@@ -1693,8 +1696,12 @@
   $('#matiereCustom').addEventListener('input', (e)=>{
     if(e.target.value.trim()){
       selectedMatiere = e.target.value.trim();
-      $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+      $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+    } else {
+      selectedMatiere = null;
     }
+    updateMatiereEvalHint(selectedMatiere);
+    updateRevoirSub();
   });
 
   $('#dureeQuick').addEventListener('click', (e)=>{
@@ -1714,7 +1721,7 @@
     const btn = e.target.closest('.c-diff-btn');
     if(!btn) return;
     selectedDiff = parseInt(btn.dataset.v,10);
-    $$('.c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
+    $$('#diffRow .c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
     $('#diffCaption').textContent = DIFF_LABELS[selectedDiff];
     updateRevoirSub();
   });
@@ -1778,9 +1785,9 @@
     $('#dureeInput').value = '';
     $('#notesInput').value = '';
     $('#dateInput').value = todayISO();
-    $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+    $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
     $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
-    $$('.c-diff-btn').forEach(b=>b.classList.remove('sel'));
+    $$('#diffRow .c-diff-btn').forEach(b=>b.classList.remove('sel'));
     $('#diffCaption').textContent = "Choisis un niveau";
     $('#revoirSwitch').classList.add('on');
     $('#revoirDateWrap').style.display = 'block';
@@ -2064,10 +2071,22 @@
     return card;
   }
 
+  // Échappe aussi les guillemets : le résultat est parfois injecté dans des
+  // attributs HTML (value="...", data-m="..."), pas seulement dans du texte.
   function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+    return String(str ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // N'accepte que les liens de fichiers hébergés sur Firebase Storage : les
+  // messages du chat sont écrits par n'importe quel client, un fileURL du type
+  // "javascript:..." ne doit jamais finir dans un href/src.
+  function safeFileURL(url){
+    try{
+      const u = new URL(url);
+      return u.protocol === 'https:' && u.hostname === 'firebasestorage.googleapis.com' ? u.href : null;
+    }catch(e){ return null; }
   }
 
   // ---------- HISTORIQUE ----------
@@ -2760,15 +2779,15 @@
     switchView('ajouter');
     if(timerMatiere){
       selectedMatiere = timerMatiere;
-      $$('.c-chip').forEach(c=>{
-        if($('#matiereChips').contains(c)) c.classList.toggle('sel', c.textContent===timerMatiere);
-      });
+      $$('#matiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===timerMatiere));
+      updateMatiereEvalHint(timerMatiere);
     }
     const sujetVal = $('#timerSujetInput').value.trim();
     if(sujetVal) $('#sujetInput').value = sujetVal;
     selectedDuree = minutes;
     $('#dureeInput').value = minutes;
     $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', parseInt(b.dataset.v,10)===minutes));
+    updateRevoirSub();
 
     timerAccumulatedMs = 0;
     timerStartTs = null;
@@ -2874,11 +2893,13 @@
       const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
       const tsLabel = ts ? ts.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
       let fileHtml = '';
-      if(m.fileURL){
+      const fileURL = m.fileURL ? safeFileURL(m.fileURL) : null;
+      if(fileURL){
+        const safeURL = escapeHtml(fileURL);
         if(m.fileType && m.fileType.startsWith('image/')){
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener"><img src="${m.fileURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
+          fileHtml = `<a href="${safeURL}" target="_blank" rel="noopener"><img src="${safeURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
         } else {
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
+          fileHtml = `<a href="${safeURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
         }
       }
       bubble.innerHTML = `
@@ -3118,7 +3139,7 @@
     try{
       await setDoc(doc(profilesCol, currentUid), { name, createdAt: todayISO() });
       currentProfileName = name;
-      $('#onboardingOverlay').classList.remove('show');
+      $('#onboardingOverlay').style.display = 'none';
       initApp();
     }catch(e){
       showToast("Échec de la création du profil");
@@ -3151,8 +3172,17 @@
     }
   });
 
+  $('#forgotPasswordBtn').addEventListener('click', async ()=>{
+    const email = $('#loginEmailInput').value.trim();
+    if(!email){ showToast("Indique d'abord ton email"); return; }
+    try{
+      await sendPasswordResetEmail(auth, email);
+    }catch(e){ /* même message : on ne révèle pas si l'email existe */ }
+    showToast("Si ce compte existe, un email de réinitialisation a été envoyé");
+  });
+
   function updateProfileBadge(){
-    $('#profileBadge').textContent = '👤 ' + currentProfileName;
+    $('#profileBadge').textContent = (isAdmin ? '🛡️ ' : '👤 ') + currentProfileName;
   }
 
   function updateAccountOverlay(){
@@ -3253,6 +3283,7 @@
       await linkWithCredential(auth.currentUser, cred);
       showToast("Profil sauvegardé ✓");
       updateAccountOverlay();
+      updateProfileBadge();
     }catch(e){
       if(e.code === 'auth/email-already-in-use'){
         showToast("Cet email est déjà utilisé par un autre profil");
@@ -3275,28 +3306,36 @@
       $('#onboardingNameInput').value = '';
       $('#onboardingLoginWrap').style.display = 'none';
       $('#onboardingNewWrap').style.display = 'block';
-      await signInAnonymously(auth);
+      $('#onboardingFormWrap').style.display = 'none';
+      $('#onboardingLoadingWrap').style.display = 'block';
+      $('#onboardingOverlay').style.display = 'block';
+      // onAuthStateChanged(null) relance la connexion anonyme.
     }catch(e){
       showToast("Échec du changement de profil");
     }
   });
 
+  // On ne se connecte en anonyme QUE s'il n'y a aucune session persistée :
+  // appeler signInAnonymously() à chaque chargement remplaçait un compte
+  // email (admin compris) par un nouveau profil anonyme vide au rechargement.
   onAuthStateChanged(auth, (user)=>{
     if(user){
       currentUid = user.uid;
       loadOrPromptProfile();
+    } else {
+      currentUid = null;
+      signInAnonymously(auth).catch(()=>{
+        $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
+      });
     }
-  });
-  signInAnonymously(auth).catch(()=>{
-    $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
   });
 
   // ---------- INIT ----------
   async function initApp(){
     $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     $('#dateInput').value = todayISO();
-    updateProfileBadge();
     isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
+    updateProfileBadge();
     await loadSessions();
     await evalGet();
     updateRevoirSub();
