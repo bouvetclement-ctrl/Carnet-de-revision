@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Règles Firebase Storage (pièces jointes du chat).
+// À coller dans la console (Storage > Règles) ou : firebase deploy --only storage
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chat-uploads/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      // Chacun n'écrit que dans son propre dossier, 10 Mo max, pas de remplacement.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.size < 10 * 1024 * 1024;
+      allow update, delete: if false;
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

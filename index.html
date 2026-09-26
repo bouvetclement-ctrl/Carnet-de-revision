@@ -616,6 +616,7 @@
   }
   .c-chat-bubble .txt{font-size:13.5px;color:var(--ink);white-space:pre-wrap;word-break:break-word;}
   .c-chat-bubble .ts{font-size:9.5px;color:var(--ink-faint);margin-top:3px;text-align:right;}
+  .c-chat-bubble .msg-del{background:none;border:none;color:var(--ink-faint);font-size:11px;cursor:pointer;padding:0 0 0 6px;}
   .c-chat-inputbar{
     position:absolute;
     bottom:56px;
@@ -851,6 +852,7 @@
           <input type="password" id="loginPasswordInput" placeholder="••••••••">
         </div>
         <button class="c-submit" id="loginSubmitBtn">Se connecter</button>
+        <button class="c-reset-link" id="forgotPasswordBtn" style="margin-top:12px;">Mot de passe oublié ?</button>
         <button class="c-reset-link" id="showNewLinkBtn" style="margin-top:16px;">Créer un nouveau profil à la place</button>
       </div>
     </div>
@@ -892,6 +894,13 @@
         <div class="c-sec-label">Anciennes données</div>
         <div class="c-note-box" id="migrationNote"></div>
         <button class="c-export-btn" id="migrationBtn" style="border-color:var(--g);color:#3F6B4C;margin-top:10px;">Récupérer ces données sur mon profil</button>
+      </div>
+
+      <div id="adminVerifyWrap" style="display:none;">
+        <div class="c-sec-label">🛡️ Confirmer l'email admin</div>
+        <div class="c-note-box">Un email de confirmation a été envoyé à cette adresse. Clique sur le lien reçu, puis sur « J'ai confirmé » pour activer le panneau admin.</div>
+        <button class="c-export-btn" id="adminVerifiedBtn" style="margin-top:10px;">✅ J'ai confirmé mon email</button>
+        <button class="c-reset-link" id="adminResendBtn" style="margin-top:10px;">Renvoyer l'email de confirmation</button>
       </div>
 
       <div id="adminPanelWrap" style="display:none;">
@@ -1322,7 +1331,8 @@
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, signInAnonymously, onAuthStateChanged, signOut,
-    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword
+    EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword,
+    sendPasswordResetEmail, sendEmailVerification
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
   import {
     getStorage, ref, uploadBytes, getDownloadURL
@@ -1341,6 +1351,12 @@
   const storage = getStorage(fbApp);
   const ADMIN_EMAIL = 'bouvet.clement@gmail.com';
   let isAdmin = false;
+  // Doit rester identique à isAdmin() dans firestore.rules : email admin ET
+  // confirmé (sinon n'importe qui pourrait lier cette adresse avant toi).
+  function computeIsAdmin(){
+    const u = auth.currentUser;
+    return !!(u && u.email === ADMIN_EMAIL && u.emailVerified);
+  }
   const profilesCol = collection(db, "profiles");
 
 (function(){
@@ -1681,9 +1697,10 @@
       chip.addEventListener('click', ()=>{
         selectedMatiere = m;
         $('#matiereCustom').value = '';
-        $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+        $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
         chip.classList.add('sel');
         updateMatiereEvalHint(m);
+        updateRevoirSub();
       });
       wrap.appendChild(chip);
     });
@@ -1693,8 +1710,12 @@
   $('#matiereCustom').addEventListener('input', (e)=>{
     if(e.target.value.trim()){
       selectedMatiere = e.target.value.trim();
-      $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+      $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
+    } else {
+      selectedMatiere = null;
     }
+    updateMatiereEvalHint(selectedMatiere);
+    updateRevoirSub();
   });
 
   $('#dureeQuick').addEventListener('click', (e)=>{
@@ -1714,7 +1735,7 @@
     const btn = e.target.closest('.c-diff-btn');
     if(!btn) return;
     selectedDiff = parseInt(btn.dataset.v,10);
-    $$('.c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
+    $$('#diffRow .c-diff-btn').forEach(b=>b.classList.toggle('sel', b===btn));
     $('#diffCaption').textContent = DIFF_LABELS[selectedDiff];
     updateRevoirSub();
   });
@@ -1778,9 +1799,9 @@
     $('#dureeInput').value = '';
     $('#notesInput').value = '';
     $('#dateInput').value = todayISO();
-    $$('.c-chip').forEach(c=>c.classList.remove('sel'));
+    $$('#matiereChips .c-chip').forEach(c=>c.classList.remove('sel'));
     $$('#dureeQuick button').forEach(b=>b.classList.remove('sel'));
-    $$('.c-diff-btn').forEach(b=>b.classList.remove('sel'));
+    $$('#diffRow .c-diff-btn').forEach(b=>b.classList.remove('sel'));
     $('#diffCaption').textContent = "Choisis un niveau";
     $('#revoirSwitch').classList.add('on');
     $('#revoirDateWrap').style.display = 'block';
@@ -2064,10 +2085,22 @@
     return card;
   }
 
+  // Échappe aussi les guillemets : le résultat est parfois injecté dans des
+  // attributs HTML (value="...", data-m="..."), pas seulement dans du texte.
   function escapeHtml(str){
-    const d = document.createElement('div');
-    d.textContent = str;
-    return d.innerHTML;
+    return String(str ?? '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // N'accepte que les liens de fichiers hébergés sur Firebase Storage : les
+  // messages du chat sont écrits par n'importe quel client, un fileURL du type
+  // "javascript:..." ne doit jamais finir dans un href/src.
+  function safeFileURL(url){
+    try{
+      const u = new URL(url);
+      return u.protocol === 'https:' && u.hostname === 'firebasestorage.googleapis.com' ? u.href : null;
+    }catch(e){ return null; }
   }
 
   // ---------- HISTORIQUE ----------
@@ -2760,15 +2793,15 @@
     switchView('ajouter');
     if(timerMatiere){
       selectedMatiere = timerMatiere;
-      $$('.c-chip').forEach(c=>{
-        if($('#matiereChips').contains(c)) c.classList.toggle('sel', c.textContent===timerMatiere);
-      });
+      $$('#matiereChips .c-chip').forEach(c=>c.classList.toggle('sel', c.textContent===timerMatiere));
+      updateMatiereEvalHint(timerMatiere);
     }
     const sujetVal = $('#timerSujetInput').value.trim();
     if(sujetVal) $('#sujetInput').value = sujetVal;
     selectedDuree = minutes;
     $('#dureeInput').value = minutes;
     $$('#dureeQuick button').forEach(b=>b.classList.toggle('sel', parseInt(b.dataset.v,10)===minutes));
+    updateRevoirSub();
 
     timerAccumulatedMs = 0;
     timerStartTs = null;
@@ -2874,19 +2907,27 @@
       const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
       const tsLabel = ts ? ts.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : '';
       let fileHtml = '';
-      if(m.fileURL){
+      const fileURL = m.fileURL ? safeFileURL(m.fileURL) : null;
+      if(fileURL){
+        const safeURL = escapeHtml(fileURL);
         if(m.fileType && m.fileType.startsWith('image/')){
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener"><img src="${m.fileURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
+          fileHtml = `<a href="${safeURL}" target="_blank" rel="noopener"><img src="${safeURL}" style="max-width:100%;border-radius:8px;margin-top:5px;display:block;"></a>`;
         } else {
-          fileHtml = `<a href="${m.fileURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
+          fileHtml = `<a href="${safeURL}" target="_blank" rel="noopener" style="display:block;margin-top:5px;font-size:12px;color:var(--b);text-decoration:none;">📎 ${escapeHtml(m.fileName||'Fichier')}</a>`;
         }
       }
       bubble.innerHTML = `
         ${isMe ? '' : `<div class="who">${escapeHtml(m.senderName || 'Quelqu\'un')}</div>`}
         ${m.text ? `<div class="txt">${escapeHtml(m.text)}</div>` : ''}
         ${fileHtml}
-        ${tsLabel ? `<div class="ts">${tsLabel}</div>` : ''}
+        ${(tsLabel || isMe || isAdmin) ? `<div class="ts">${tsLabel}${(isMe || isAdmin) ? '<button class="msg-del" title="Supprimer le message">✕</button>' : ''}</div>` : ''}
       `;
+      const delBtn = bubble.querySelector('.msg-del');
+      if(delBtn) delBtn.addEventListener('click', async ()=>{
+        if(!confirm("Supprimer ce message pour tout le monde ?")) return;
+        try{ await deleteDoc(doc(db, "messages", m.id)); }
+        catch(e){ showToast("Suppression impossible"); }
+      });
       wrap.appendChild(bubble);
     });
     if(wasNearBottom || messages[messages.length-1].senderId === currentUid){
@@ -3118,7 +3159,7 @@
     try{
       await setDoc(doc(profilesCol, currentUid), { name, createdAt: todayISO() });
       currentProfileName = name;
-      $('#onboardingOverlay').classList.remove('show');
+      $('#onboardingOverlay').style.display = 'none';
       initApp();
     }catch(e){
       showToast("Échec de la création du profil");
@@ -3151,8 +3192,17 @@
     }
   });
 
+  $('#forgotPasswordBtn').addEventListener('click', async ()=>{
+    const email = $('#loginEmailInput').value.trim();
+    if(!email){ showToast("Indique d'abord ton email"); return; }
+    try{
+      await sendPasswordResetEmail(auth, email);
+    }catch(e){ /* même message : on ne révèle pas si l'email existe */ }
+    showToast("Si ce compte existe, un email de réinitialisation a été envoyé");
+  });
+
   function updateProfileBadge(){
-    $('#profileBadge').textContent = '👤 ' + currentProfileName;
+    $('#profileBadge').textContent = (isAdmin ? '🛡️ ' : '👤 ') + currentProfileName;
   }
 
   function updateAccountOverlay(){
@@ -3162,9 +3212,15 @@
     $('#accountLinkWrap').style.display = isLinked ? 'none' : 'block';
     $('#linkEmailInput').value = '';
     $('#linkPasswordInput').value = '';
-    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
+    isAdmin = computeIsAdmin();
+    const pendingAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL && !isAdmin);
+    $('#adminVerifyWrap').style.display = pendingAdmin ? 'block' : 'none';
     $('#adminPanelWrap').style.display = isAdmin ? 'block' : 'none';
-    checkOrphanedData();
+    // Attribuer les anciennes données sans propriétaire est réservé à l'admin
+    // (les règles Firestore le refusent aux autres profils).
+    if(isAdmin) checkOrphanedData();
+    else $('#migrationWrap').style.display = 'none';
+    updateProfileBadge();
   }
 
   $('#exportAllBtn').addEventListener('click', async ()=>{
@@ -3235,6 +3291,25 @@
     }
   }
 
+  $('#adminResendBtn').addEventListener('click', async ()=>{
+    try{
+      await sendEmailVerification(auth.currentUser);
+      showToast("Email de confirmation renvoyé");
+    }catch(e){
+      showToast("Échec de l'envoi, réessaie dans quelques minutes");
+    }
+  });
+
+  $('#adminVerifiedBtn').addEventListener('click', async ()=>{
+    try{
+      await auth.currentUser.reload();
+      // Force un nouveau jeton pour que Firestore voie email_verified = true.
+      await auth.currentUser.getIdToken(true);
+    }catch(e){}
+    updateAccountOverlay();
+    showToast(isAdmin ? "Accès admin activé 🛡️" : "Email pas encore confirmé");
+  });
+
   $('#profileBadge').addEventListener('click', ()=>{
     updateAccountOverlay();
     $('#accountOverlay').classList.add('show');
@@ -3251,7 +3326,8 @@
     try{
       const cred = EmailAuthProvider.credential(email, password);
       await linkWithCredential(auth.currentUser, cred);
-      showToast("Profil sauvegardé ✓");
+      try{ await sendEmailVerification(auth.currentUser); }catch(e){}
+      showToast("Profil sauvegardé ✓ — vérifie tes emails");
       updateAccountOverlay();
     }catch(e){
       if(e.code === 'auth/email-already-in-use'){
@@ -3275,28 +3351,36 @@
       $('#onboardingNameInput').value = '';
       $('#onboardingLoginWrap').style.display = 'none';
       $('#onboardingNewWrap').style.display = 'block';
-      await signInAnonymously(auth);
+      $('#onboardingFormWrap').style.display = 'none';
+      $('#onboardingLoadingWrap').style.display = 'block';
+      $('#onboardingOverlay').style.display = 'block';
+      // onAuthStateChanged(null) relance la connexion anonyme.
     }catch(e){
       showToast("Échec du changement de profil");
     }
   });
 
+  // On ne se connecte en anonyme QUE s'il n'y a aucune session persistée :
+  // appeler signInAnonymously() à chaque chargement remplaçait un compte
+  // email (admin compris) par un nouveau profil anonyme vide au rechargement.
   onAuthStateChanged(auth, (user)=>{
     if(user){
       currentUid = user.uid;
       loadOrPromptProfile();
+    } else {
+      currentUid = null;
+      signInAnonymously(auth).catch(()=>{
+        $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
+      });
     }
-  });
-  signInAnonymously(auth).catch(()=>{
-    $('#onboardingLoadingWrap').innerHTML = '<div class="bilan-title">Erreur<span style="color:var(--margin);">.</span></div><div class="bilan-sub">Connexion au serveur impossible. Vérifie ta connexion internet et recharge la page.</div>';
   });
 
   // ---------- INIT ----------
   async function initApp(){
     $('#dateToday').textContent = new Date().toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
     $('#dateInput').value = todayISO();
+    isAdmin = computeIsAdmin();
     updateProfileBadge();
-    isAdmin = !!(auth.currentUser && auth.currentUser.email === ADMIN_EMAIL);
     await loadSessions();
     await evalGet();
     updateRevoirSub();
