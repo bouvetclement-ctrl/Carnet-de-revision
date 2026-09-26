@@ -797,7 +797,12 @@
     border-radius:20px;
     font-size:12.5px;
     font-weight:600;
-    z-index:10;
+    /* Au-dessus des panneaux (connexion z-index 30) sinon les erreurs sont invisibles. */
+    z-index:60;
+    width:max-content;
+    max-width:88%;
+    text-align:center;
+    line-height:1.4;
     opacity:0;
     pointer-events:none;
     transition:opacity .2s, transform .2s;
@@ -1617,11 +1622,13 @@
     }
   }
 
-  function showToast(msg){
+  let toastTimer = null;
+  function showToast(msg, duration=1600){
     const t = $('#toast');
     t.textContent = msg;
     t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 1600);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), duration);
   }
 
   // ---------- NAV ----------
@@ -3175,6 +3182,29 @@
     $('#onboardingNewWrap').style.display = 'block';
   });
 
+  // Traduit les codes d'erreur Firebase Auth en message compréhensible, au
+  // lieu d'un « échec » générique qui ne permet pas de savoir quoi corriger.
+  function authErrorMessage(e, fallback){
+    const code = e && e.code;
+    const msgs = {
+      'auth/invalid-credential': "Email ou mot de passe incorrect (ou ce compte n'existe pas encore)",
+      'auth/invalid-login-credentials': "Email ou mot de passe incorrect (ou ce compte n'existe pas encore)",
+      'auth/wrong-password': "Mot de passe incorrect",
+      'auth/user-not-found': "Aucun compte avec cet email — crée d'abord ton profil puis sauvegarde-le dans « Mon compte »",
+      'auth/invalid-email': "Adresse email invalide",
+      'auth/operation-not-allowed': "Connexion par email désactivée : active « Adresse e-mail/Mot de passe » dans Firebase > Authentication > Sign-in method",
+      'auth/too-many-requests': "Trop de tentatives : réessaie dans quelques minutes",
+      'auth/user-disabled': "Ce compte a été désactivé",
+      'auth/network-request-failed': "Pas de connexion internet",
+      'auth/weak-password': "Mot de passe trop faible (8 caractères minimum)",
+      'auth/email-already-in-use': "Cet email est déjà utilisé par un autre profil — connecte-toi avec",
+      'auth/credential-already-in-use': "Cet email est déjà utilisé par un autre profil — connecte-toi avec",
+      'auth/provider-already-linked': "Ce profil est déjà sauvegardé avec un email",
+      'auth/requires-recent-login': "Reconnecte-toi puis réessaie"
+    };
+    return msgs[code] || (fallback + (code ? ` (${code})` : ''));
+  }
+
   $('#loginSubmitBtn').addEventListener('click', async ()=>{
     const email = $('#loginEmailInput').value.trim();
     const password = $('#loginPasswordInput').value;
@@ -3188,7 +3218,7 @@
       await signInWithEmailAndPassword(auth, email, password);
       // onAuthStateChanged prend le relais : charge le profil existant.
     }catch(e){
-      showToast("Email ou mot de passe incorrect");
+      showToast(authErrorMessage(e, "Connexion impossible"), 4500);
     }
   });
 
@@ -3330,11 +3360,7 @@
       showToast("Profil sauvegardé ✓ — vérifie tes emails");
       updateAccountOverlay();
     }catch(e){
-      if(e.code === 'auth/email-already-in-use'){
-        showToast("Cet email est déjà utilisé par un autre profil");
-      } else {
-        showToast("Échec de la sauvegarde");
-      }
+      showToast(authErrorMessage(e, "Échec de la sauvegarde"), 4500);
     }
   });
 
